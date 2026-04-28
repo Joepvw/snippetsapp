@@ -1,0 +1,29 @@
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.rsuser
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+
+# Rider / Rider
+.idea/
+*.sln.iml
+
+# Local-only app data (never commit)
+.local/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coverage
