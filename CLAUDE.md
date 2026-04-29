@@ -21,35 +21,38 @@ Get the latest tag with `git tag --list --sort=-v:refname | head -1`.
 Run these in order. Replace `vX.Y.Z` with the agreed version.
 
 1. **Verify clean state** — `git status` should be clean, or stage only intentional changes.
-2. **Commit** any pending work with a conventional message (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
-3. **Tag** the commit:
+2. **Update `CHANGELOG.md`**:
+   - Move everything under `## [Unreleased]` into a new `## [X.Y.Z] — YYYY-MM-DD` section.
+   - Leave `## [Unreleased]` empty (or with subsection headers) at the top for next iteration.
+   - Update the comparison links at the bottom: change `[Unreleased]` to compare from the new tag, and add a `[X.Y.Z]` link.
+3. **Commit** any pending work with a conventional message (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`). Include the changelog update in this commit.
+4. **Tag** the commit:
    ```
    git tag -a vX.Y.Z -m "vX.Y.Z - <one-line summary>"
    ```
-4. **Build the publish artifact** (self-contained, no .NET runtime needed on target machine):
+5. **Build the publish artifact** (self-contained, no .NET runtime needed on target machine):
    ```
    rm -rf publish/SnippetLauncher-win-x64
    dotnet publish src/SnippetLauncher.App/SnippetLauncher.App.csproj \
      -c Release -r win-x64 --self-contained true \
      -o publish/SnippetLauncher-win-x64
    ```
-5. **Zip** via PowerShell (matches existing naming):
+6. **Zip** via PowerShell (matches existing naming):
    ```
    Compress-Archive -Path publish\SnippetLauncher-win-x64 \
      -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
    ```
-6. **Push** the commit and tag to GitHub:
+7. **Push** the commit and tag to GitHub:
    ```
    git push origin master
    git push origin vX.Y.Z
    ```
-7. **Create GitHub Release** with the zip attached:
+8. **Create GitHub Release** with the zip attached. Use the new changelog section as release notes (extract the `## [X.Y.Z]` block from `CHANGELOG.md`):
    ```
    gh release create vX.Y.Z publish/SnippetLauncher-vX.Y.Z-win-x64.zip \
      --title "vX.Y.Z - <one-line summary>" \
-     --notes "<release notes: what's new, fixes, breaking changes>"
+     --notes "<paste the [X.Y.Z] section content from CHANGELOG.md>"
    ```
-   Ask the user for release notes content if not provided.
 
 ### Naming conventions
 
