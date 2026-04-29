@@ -35,5 +35,11 @@ publish/
 # User snippet content (personal, synced separately)
 snippets/
 
-# Per-user Claude Code config
-.claude/
+# Claude Code: share commands/skills/settings.json via the repo,
+# but keep personal/per-machine config out
+.claude/settings.local.json
+.claude/.cache/
+.claude/projects/
+.claude/todos/
+.claude/statsig/
+.claude/shell-snapshots/

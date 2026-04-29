@@ -1,0 +1,16 @@
+{
+  "$comment": "Project-shared Claude Code settings. Personal/per-machine permissions go in settings.local.json (gitignored).",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); path=$(echo \"$input\" | grep -o '\"file_path\":[[:space:]]*\"[^\"]*\"' | head -1); case \"$path\" in *SnippetLauncher.Core*.cs*|*SnippetLauncher.Core.Tests*.cs*) echo '[hook] Core file changed — running Core tests'; dotnet test tests/SnippetLauncher.Core.Tests/SnippetLauncher.Core.Tests.csproj --nologo -v quiet 2>&1 | tail -20 ;; esac; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
