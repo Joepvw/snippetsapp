@@ -38,7 +38,18 @@ Run these in order. Replace `vX.Y.Z` with the agreed version.
    Compress-Archive -Path publish\SnippetLauncher-win-x64 \
      -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
    ```
-6. **Confirm** with the user before pushing tags to remote (if a remote exists).
+6. **Push** the commit and tag to GitHub:
+   ```
+   git push origin master
+   git push origin vX.Y.Z
+   ```
+7. **Create GitHub Release** with the zip attached:
+   ```
+   gh release create vX.Y.Z publish/SnippetLauncher-vX.Y.Z-win-x64.zip \
+     --title "vX.Y.Z - <one-line summary>" \
+     --notes "<release notes: what's new, fixes, breaking changes>"
+   ```
+   Ask the user for release notes content if not provided.
 
 ### Naming conventions
 
