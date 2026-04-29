@@ -18,36 +18,39 @@ Get the latest tag with `git tag --list --sort=-v:refname | head -1`.
 
 ### Release procedure (after user confirms version bump)
 
+The `release` skill (`.claude/skills/release/SKILL.md`) automates this — invoke it instead of running steps by hand. The steps below remain authoritative for reference.
+
 Run these in order. Replace `vX.Y.Z` with the agreed version.
 
 1. **Verify clean state** — `git status` should be clean, or stage only intentional changes.
-2. **Update `CHANGELOG.md`**:
+2. **Bump version** in `Directory.Build.props` (`<Version>`, `<AssemblyVersion>`, `<FileVersion>`, `<InformationalVersion>`) to `X.Y.Z` / `X.Y.Z.0`.
+3. **Update `CHANGELOG.md`**:
    - Move everything under `## [Unreleased]` into a new `## [X.Y.Z] — YYYY-MM-DD` section.
    - Leave `## [Unreleased]` empty (or with subsection headers) at the top for next iteration.
    - Update the comparison links at the bottom: change `[Unreleased]` to compare from the new tag, and add a `[X.Y.Z]` link.
-3. **Commit** any pending work with a conventional message (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`). Include the changelog update in this commit.
-4. **Tag** the commit:
+4. **Commit** any pending work with a conventional message (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`). Include the version bump and changelog update in this commit.
+5. **Tag** the commit:
    ```
    git tag -a vX.Y.Z -m "vX.Y.Z - <one-line summary>"
    ```
-5. **Build the publish artifact** (self-contained, no .NET runtime needed on target machine):
+6. **Build the publish artifact** (self-contained, no .NET runtime needed on target machine):
    ```
    rm -rf publish/SnippetLauncher-win-x64
    dotnet publish src/SnippetLauncher.App/SnippetLauncher.App.csproj \
      -c Release -r win-x64 --self-contained true \
      -o publish/SnippetLauncher-win-x64
    ```
-6. **Zip** via PowerShell (matches existing naming):
+7. **Zip** via PowerShell (matches existing naming):
    ```
    Compress-Archive -Path publish\SnippetLauncher-win-x64 \
      -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
    ```
-7. **Push** the commit and tag to GitHub:
+8. **Push** the commit and tag to GitHub:
    ```
    git push origin master
    git push origin vX.Y.Z
    ```
-8. **Create GitHub Release** with the zip attached. Use the new changelog section as release notes (extract the `## [X.Y.Z]` block from `CHANGELOG.md`):
+9. **Create GitHub Release** with the zip attached. Use the new changelog section as release notes (extract the `## [X.Y.Z]` block from `CHANGELOG.md`):
    ```
    gh release create vX.Y.Z publish/SnippetLauncher-vX.Y.Z-win-x64.zip \
      --title "vX.Y.Z - <one-line summary>" \
@@ -72,7 +75,30 @@ Run these in order. Replace `vX.Y.Z` with the agreed version.
 - `src/SnippetLauncher.Core/` — domain, storage, sync, placeholders (no UI deps)
 - `src/SnippetLauncher.App/` — WPF UI (Views, ViewModels, Services)
 - `tests/SnippetLauncher.Core.Tests/` — xUnit tests
+- `tests/SnippetLauncher.App.Tests/` — NetArchTest boundary tests
 - `snippets/` — **user content, gitignored** (each user has their own)
 - `publish/` — **build output, gitignored** (release zips live here locally)
-- `docs/plans/` — design plans
+- `docs/plans/` — design plans (one per feature, see `docs/plans/README.md`)
+- `docs/solutions/` — institutional memory: solved problems with YAML frontmatter, searchable by tag
 - `docs/setup-second-user.md` — onboarding guide for additional users
+
+## Architectural invariants (do not break)
+
+These constraints are enforced by `tests/SnippetLauncher.App.Tests` (NetArchTest) and/or by convention. Touch them only with a deliberate plan.
+
+- **Core has zero WPF / UI references.** `SnippetLauncher.Core` must remain headless and testable from xUnit. Anything that needs `System.Windows.*` belongs in `SnippetLauncher.App`. New cross-cutting concerns get an interface in Core (e.g. `IClipboardService`) with a WPF implementation in App.
+- **GitService runs on a single dedicated worker thread.** LibGit2Sharp handles are not thread-safe. All git operations are queued through a `Channel`. Do not call `GitService` methods from arbitrary threads — submit ops to the channel.
+- **SnippetRepository is single-writer.** Mutations go through a `Channel`; concurrent callers serialize naturally. Don't add a second writer path.
+- **DI seams (`IClock`, `IClipboardService`, `IDialogService`, `ICommandBus`, `IGitService`, `IGlobalHotkeyService`) exist for testability.** Don't bypass them by `new`-ing concrete types in Core.
+
+## Test conventions
+
+- **Core.Tests uses real filesystem and real git repos in temp folders.** This is intentional — the storage and sync paths are the highest-risk surface and mocks have masked real bugs in the past. Don't "fix" these to use in-memory mocks without a strong reason.
+- **App.Tests is for architectural enforcement** (NetArchTest), not behavioral WPF tests. UI behavior is verified manually via `dotnet run`.
+- Coverage gate is **70% line-rate on Core**; CI fails below that. App layer is excluded from the gate.
+
+## Working with this repo (compound engineering)
+
+- **Plans first.** Non-trivial features get a plan in `docs/plans/YYYY-MM-DD-<slug>.md` before implementation. See `docs/plans/README.md` for the template.
+- **Capture learnings.** When a non-obvious bug is fixed or a tricky architectural decision is made, add an entry to `docs/solutions/` so the next session (human or agent) can find it.
+- **Parallel review on branch work.** Run `/review-branch` to spawn security, architecture, performance, and simplicity reviewers in parallel against the current branch diff before opening a PR.

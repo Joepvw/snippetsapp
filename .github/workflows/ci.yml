@@ -21,6 +21,9 @@ jobs:
       - name: Restore
         run: dotnet restore Snippets.sln
 
+      - name: Format check
+        run: dotnet format Snippets.sln --verify-no-changes --severity warn
+
       - name: Build
         run: dotnet build Snippets.sln -c Release --no-restore
 

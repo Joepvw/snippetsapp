@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    Centrally-defined version metadata. Bump here as part of the release procedure
+    (see .claude/skills/release/SKILL.md). All projects in the solution inherit these.
+    Read at runtime by the update-checker (planned, see docs/plans/) to compare
+    against the latest GitHub Release.
+  -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+  </PropertyGroup>
+
+</Project>
