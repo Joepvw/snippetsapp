@@ -1,5 +1,17 @@
 # SnippetLauncher — Project Notes for Claude
 
+## Reading order for a fresh session
+
+When you start working on this repo without prior context, read in this order — the whole stack is ~10 minutes:
+
+1. **This file (CLAUDE.md)** — conventions, invariants, release procedure.
+2. **[docs/architecture.md](docs/architecture.md)** — top-level system map. How Core, App, Sync, Storage, Search fit together.
+3. **[docs/solutions/](docs/solutions/)** — institutional memory. Read when touching threading, hotkeys, or sync.
+4. **[docs/runbooks/](docs/runbooks/)** — only when something is broken at runtime.
+5. **[docs/plans/](docs/plans/)** — only when implementing or extending a planned feature.
+
+Don't reverse-engineer architecture from code if `docs/architecture.md` answers the question.
+
 ## Releases & Versioning
 
 This project uses **Semantic Versioning** (`MAJOR.MINOR.PATCH`):
@@ -66,9 +78,12 @@ Run these in order. Replace `vX.Y.Z` with the agreed version.
 ## Build / Test
 
 - Solution: `Snippets.sln`
-- Target framework: .NET 10 (WPF, Windows-only)
-- Run tests: `dotnet test`
+- Target framework: .NET 10 (WPF, Windows-only — `net10.0-windows` TFM)
+- Build: `dotnet build Snippets.sln -c Release` (~5–10 s clean, <3 s incremental)
+- Run tests: `dotnet test` — Core suite ~67 tests, **8–12 s** is normal (integration tests spin up real temp git repos and real filesystem; do not "fix" this slowness with mocks, see test conventions below)
+- Format check: `dotnet format Snippets.sln --verify-no-changes --severity warn` (CI gate; auto-fix locally with `dotnet format Snippets.sln`)
 - Run app from source: `dotnet run --project src/SnippetLauncher.App`
+- A second `dotnet run` will exit immediately (single-instance mutex `SnippetLauncher_SingleInstance_Mutex`); kill via `taskkill //F //IM SnippetLauncher.App.exe` if needed
 
 ## Repo layout
 
@@ -78,8 +93,10 @@ Run these in order. Replace `vX.Y.Z` with the agreed version.
 - `tests/SnippetLauncher.App.Tests/` — NetArchTest boundary tests
 - `snippets/` — **user content, gitignored** (each user has their own)
 - `publish/` — **build output, gitignored** (release zips live here locally)
-- `docs/plans/` — design plans (one per feature, see `docs/plans/README.md`)
+- `docs/architecture.md` — top-level system overview (read this first after CLAUDE.md)
+- `docs/plans/` — design plans, one per feature (see `docs/plans/README.md`)
 - `docs/solutions/` — institutional memory: solved problems with YAML frontmatter, searchable by tag
+- `docs/runbooks/` — operational fix-it procedures for runtime failures (sync stuck, hotkey broken, snippet recovery)
 - `docs/setup-second-user.md` — onboarding guide for additional users
 
 ## Architectural invariants (do not break)
