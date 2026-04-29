@@ -11,25 +11,33 @@ zodat je dezelfde snippets-bibliotheek deelt via een Git-repository.
 
 ## Stap 1 — Snippet Launcher downloaden
 
-1. Haal de nieuwste `.zip` release op (gedeeld door de eerste gebruiker of via jullie interne link).
-2. Pak de zip uit naar een map naar keuze, bijv. `C:\Tools\SnippetLauncher\`.
+1. Download de nieuwste `.zip` van de Releases-pagina:
+   **https://github.com/Joepvw/snippetsapp/releases/latest**
+2. Pak de zip uit naar `%LOCALAPPDATA%\Programs\SnippetLauncher\`
+   (typ dat pad in de adresbalk van Verkenner — Windows maakt de mappen automatisch aan).
+   Dit is de standaardlocatie voor user-scoped apps; geen admin-rechten nodig en updates kun je later eenvoudig over deze map heen uitpakken.
 3. Klik met **rechts** op `SnippetLauncher.App.exe` → **Eigenschappen** →
    onderin bij "Beveiliging" → vink **Blokkering opheffen** aan → OK.
    _(Windows SmartScreen blokkeert anders het starten van ongesigneerde apps.)_
+4. Maak optioneel een snelkoppeling naar `SnippetLauncher.App.exe` op je bureaublad of in het Start Menu.
 
 ## Stap 2 — Repository klonen
 
-Open een terminal (PowerShell of Git Bash) en kloon de gedeelde repository:
+Open een terminal (PowerShell of Git Bash) en kloon de gedeelde snippets-repository
+naar een lokale map naar keuze:
 
 ```bash
-git clone https://github.com/jouwnaam/snippets.git C:\Users\JouwNaam\Snippets
+git clone https://github.com/Joepvw/snippets_ays.git C:\Users\JouwNaam\Documents\Snippets
 ```
 
-Vervang de URL door de juiste remote URL (vraag die op bij de eerste gebruiker).
+Pas het doelpad (`C:\Users\JouwNaam\Documents\Snippets`) aan naar wat jij wil — dit is jouw
+**lokale werkkopie**. De snippet-inhoud wordt via GitHub gesynchroniseerd, maar het lokale
+pad mag per machine verschillen.
 
-Als de repository privé is, vraagt Git Credential Manager automatisch om inloggegevens.
+De `snippets_ays` repository is privé, dus Git Credential Manager vraagt om inloggegevens.
 Gebruik een **Personal Access Token (PAT)** als wachtwoord
-([GitHub PAT aanmaken](https://github.com/settings/tokens)).
+([GitHub PAT aanmaken](https://github.com/settings/tokens) — minimaal `repo`-scope).
+Vraag de eerste gebruiker (Joep) om je toe te voegen als collaborator op de repo.
 
 ## Stap 3 — First-run wizard doorlopen
 
@@ -38,7 +46,7 @@ Start `SnippetLauncher.App.exe`. De wizard opent automatisch:
 | Stap | Actie |
 |------|-------|
 | Welkom | Klik **Aan de slag** |
-| Snippets-map | Klik **Bladeren…** en navigeer naar de geklonde map (`C:\Users\JouwNaam\Snippets`) |
+| Snippets-map | Klik **Bladeren…** en navigeer naar de geklonde map (bv. `C:\Users\JouwNaam\Documents\Snippets`) |
 | Remote | De remote is al geconfigureerd via `git clone`; je kunt dit veld leeg laten |
 | Hotkeys | Bevestig of pas de sneltoetsen aan |
 | Klaar | Klik **Voltooien** |
