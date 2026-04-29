@@ -78,9 +78,16 @@ C:\Users\Alice\...\snippets                C:\Users\Bob\...\snippets
 - Lokale paden mogen per machine verschillen — alleen de **inhoud** wordt gesynchroniseerd.
 - Bij conflicten (beide kanten bewerkten hetzelfde bestand) wint de remote en blijft een backup van de lokale versie achter in `<snippets-map>/.local/conflicts/`.
 
-## Tweede gebruiker instellen
+## Aan de slag
 
-Volledige stap-voor-stap handleiding: [docs/setup-second-user.md](docs/setup-second-user.md).
+Snippet Launcher werkt met **elke Git-repo met `.md`-bestanden** als snippet-bibliotheek —
+je bent niet gebonden aan een specifieke repo. De app initialiseert zelf een Git-repo
+in je gekozen map als die nog leeg is, en sync via een remote is volledig optioneel.
+
+- **Eigen bibliotheek opzetten** (nieuwe of bestaande GitHub-repo, of lokaal-only):
+  [docs/setup-new-user.md](docs/setup-new-user.md)
+- **Meedoen met een bestaande gedeelde repo** (collaborator op andermans bibliotheek):
+  [docs/setup-second-user.md](docs/setup-second-user.md)
 
 ## Roadmap
 

@@ -1,13 +1,18 @@
-# Snippet Launcher — Instellen voor een tweede gebruiker
+# Snippet Launcher — Meedoen met een bestaande snippets-repo
 
-Deze handleiding helpt je om Snippet Launcher op te zetten op een tweede Windows-computer,
-zodat je dezelfde snippets-bibliotheek deelt via een Git-repository.
+Deze handleiding helpt je om Snippet Launcher op te zetten op een Windows-computer
+en aan te sluiten op een **bestaande gedeelde** snippets-repository — bijvoorbeeld
+om met een collega of tussen je eigen machines dezelfde bibliotheek te delen.
+
+> Wil je een **nieuwe eigen** bibliotheek beginnen?
+> Zie [setup-new-user.md](setup-new-user.md).
 
 ## Vereisten
 
 - Windows 10 22H2 of nieuwer (of Windows 11)
 - [Git for Windows](https://git-scm.com/download/win) geïnstalleerd
   — vereist voor synchronisatie en Git Credential Manager
+- Toegang tot de gedeelde repo (collaborator-rechten als hij privé is)
 
 ## Stap 1 — Snippet Launcher downloaden
 
@@ -23,21 +28,21 @@ zodat je dezelfde snippets-bibliotheek deelt via een Git-repository.
 
 ## Stap 2 — Repository klonen
 
-Open een terminal (PowerShell of Git Bash) en kloon de gedeelde snippets-repository
-naar een lokale map naar keuze:
+Vraag de eigenaar van de gedeelde repo om de HTTPS-URL en (als de repo privé is)
+om je toe te voegen als collaborator.
+
+Open een terminal (PowerShell of Git Bash) en kloon de repo naar een lokale map naar keuze:
 
 ```bash
-git clone https://github.com/Joepvw/snippets_ays.git C:\Users\JouwNaam\Documents\Snippets
+git clone https://github.com/<eigenaar>/<repo>.git C:\Users\JouwNaam\Documents\Snippets
 ```
 
-Pas het doelpad (`C:\Users\JouwNaam\Documents\Snippets`) aan naar wat jij wil — dit is jouw
-**lokale werkkopie**. De snippet-inhoud wordt via GitHub gesynchroniseerd, maar het lokale
-pad mag per machine verschillen.
+Pas het doelpad aan naar wat jij wil — dit is jouw **lokale werkkopie**. De snippet-inhoud
+wordt via GitHub gesynchroniseerd, maar het lokale pad mag per machine verschillen.
 
-De `snippets_ays` repository is privé, dus Git Credential Manager vraagt om inloggegevens.
-Gebruik een **Personal Access Token (PAT)** als wachtwoord
+Voor privé-repo's vraagt Git Credential Manager om inloggegevens. Gebruik een
+**Personal Access Token (PAT)** als wachtwoord
 ([GitHub PAT aanmaken](https://github.com/settings/tokens) — minimaal `repo`-scope).
-Vraag de eerste gebruiker (Joep) om je toe te voegen als collaborator op de repo.
 
 ## Stap 3 — First-run wizard doorlopen
 
