@@ -66,10 +66,10 @@ public sealed class PlaceholderEngine
                 var name = raw[(i + 1)..close];
                 var resolved = name switch
                 {
-                    "date"      => now.ToString("yyyy-MM-dd"),
-                    "time"      => now.ToString("HH:mm"),
+                    "date" => now.ToString("yyyy-MM-dd"),
+                    "time" => now.ToString("HH:mm"),
                     "clipboard" => clipboardSnapshot ?? string.Empty,
-                    _           => values.TryGetValue(name, out var v) ? v : $"{{{name}}}",
+                    _ => values.TryGetValue(name, out var v) ? v : $"{{{name}}}",
                 };
                 sb.Append(resolved);
                 i = close + 1;

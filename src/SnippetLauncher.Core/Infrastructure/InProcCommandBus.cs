@@ -16,7 +16,7 @@ public sealed class InProcCommandBus : ICommandBus
         if (!_handlers.TryGetValue(typeof(T), out var list)) return;
 
         List<Func<object, Task>> snapshot;
-        lock (list) { snapshot = [..list]; }
+        lock (list) { snapshot = [.. list]; }
 
         foreach (var handler in snapshot)
             handler(command!).GetAwaiter().GetResult();

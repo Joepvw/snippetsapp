@@ -34,23 +34,23 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(SettingsService settings, IGlobalHotkeyService hotkey, SnippetRepository repository, WindowsStartupService startupService)
     {
-        _settings        = settings;
-        _hotkey          = hotkey;
-        _repository      = repository;
-        _startupService  = startupService;
+        _settings = settings;
+        _hotkey = hotkey;
+        _repository = repository;
+        _startupService = startupService;
         LoadFromSettings();
     }
 
     private void LoadFromSettings()
     {
-        RepoPath             = _settings.Current.SnippetsDirectory;
-        SearchHotkey         = _settings.Current.SearchHotkey;
-        QuickAddHotkey       = _settings.Current.QuickAddHotkey;
-        PullIntervalSeconds  = _settings.Current.PullIntervalSeconds;
-        SelectedTheme        = _settings.Current.Theme;
+        RepoPath = _settings.Current.SnippetsDirectory;
+        SearchHotkey = _settings.Current.SearchHotkey;
+        QuickAddHotkey = _settings.Current.QuickAddHotkey;
+        PullIntervalSeconds = _settings.Current.PullIntervalSeconds;
+        SelectedTheme = _settings.Current.Theme;
 
         _suppressStartAtLoginHandler = true;
-        StartAtLoginEnabled  = _settings.Current.StartAtLoginEnabled;
+        StartAtLoginEnabled = _settings.Current.StartAtLoginEnabled;
         _suppressStartAtLoginHandler = false;
     }
 
@@ -60,7 +60,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             if (value) _startupService.Enable();
-            else       _startupService.Disable();
+            else _startupService.Disable();
 
             _settings.Current.StartAtLoginEnabled = value;
             _settings.Save();

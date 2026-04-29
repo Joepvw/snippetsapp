@@ -48,11 +48,11 @@ public sealed class SearchService
 
     private double ComputeScore(Snippet snippet, string query)
     {
-        var titleScore  = Fuzz.PartialRatio(query, snippet.Title.ToLowerInvariant()) / 100.0;
-        var tagsStr     = string.Join(" ", snippet.Tags).ToLowerInvariant();
-        var tagsScore   = tagsStr.Length > 0 ? Fuzz.PartialRatio(query, tagsStr) / 100.0 : 0.0;
+        var titleScore = Fuzz.PartialRatio(query, snippet.Title.ToLowerInvariant()) / 100.0;
+        var tagsStr = string.Join(" ", snippet.Tags).ToLowerInvariant();
+        var tagsScore = tagsStr.Length > 0 ? Fuzz.PartialRatio(query, tagsStr) / 100.0 : 0.0;
         var bodyPreview = snippet.Body.Length > 500 ? snippet.Body[..500] : snippet.Body;
-        var bodyScore   = Fuzz.PartialRatio(query, bodyPreview.ToLowerInvariant()) / 100.0;
+        var bodyScore = Fuzz.PartialRatio(query, bodyPreview.ToLowerInvariant()) / 100.0;
 
         var fuzzy = 0.6 * titleScore + 0.3 * tagsScore + 0.1 * bodyScore;
         return fuzzy + UsageScore(snippet.Id);

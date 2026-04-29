@@ -20,21 +20,21 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
     [ObservableProperty] private bool _hasError;
     [ObservableProperty] private bool _canGoNext = true;
 
-    public bool IsWelcome  => CurrentStep == WizardStep.Welcome;
+    public bool IsWelcome => CurrentStep == WizardStep.Welcome;
     public bool IsRepoPath => CurrentStep == WizardStep.RepoPath;
-    public bool IsRemote   => CurrentStep == WizardStep.Remote;
-    public bool IsHotkeys  => CurrentStep == WizardStep.Hotkeys;
-    public bool IsDone     => CurrentStep == WizardStep.Done;
+    public bool IsRemote => CurrentStep == WizardStep.Remote;
+    public bool IsHotkeys => CurrentStep == WizardStep.Hotkeys;
+    public bool IsDone => CurrentStep == WizardStep.Done;
 
     public bool IsNotFirst => CurrentStep != WizardStep.Welcome;
-    public bool IsNotLast  => CurrentStep != WizardStep.Done;
+    public bool IsNotLast => CurrentStep != WizardStep.Done;
     public string NextLabel => CurrentStep switch
     {
-        WizardStep.Welcome  => "Aan de slag →",
+        WizardStep.Welcome => "Aan de slag →",
         WizardStep.RepoPath => "Volgende →",
-        WizardStep.Remote   => "Volgende →",
-        WizardStep.Hotkeys  => "Voltooien",
-        _                   => "Sluiten",
+        WizardStep.Remote => "Volgende →",
+        WizardStep.Hotkeys => "Voltooien",
+        _ => "Sluiten",
     };
 
     public event EventHandler? Completed;
@@ -42,7 +42,7 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
     public FirstRunWizardViewModel(SettingsService settings)
     {
         _settings = settings;
-        _searchHotkey   = settings.Current.SearchHotkey;
+        _searchHotkey = settings.Current.SearchHotkey;
         _quickAddHotkey = settings.Current.QuickAddHotkey;
     }
 
@@ -88,11 +88,11 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
 
         CurrentStep = CurrentStep switch
         {
-            WizardStep.Welcome  => WizardStep.RepoPath,
+            WizardStep.Welcome => WizardStep.RepoPath,
             WizardStep.RepoPath => WizardStep.Remote,
-            WizardStep.Remote   => WizardStep.Hotkeys,
-            WizardStep.Hotkeys  => WizardStep.Done,
-            _                   => CurrentStep,
+            WizardStep.Remote => WizardStep.Hotkeys,
+            WizardStep.Hotkeys => WizardStep.Done,
+            _ => CurrentStep,
         };
 
         if (CurrentStep == WizardStep.Done)
@@ -105,10 +105,10 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
         CurrentStep = CurrentStep switch
         {
             WizardStep.RepoPath => WizardStep.Welcome,
-            WizardStep.Remote   => WizardStep.RepoPath,
-            WizardStep.Hotkeys  => WizardStep.Remote,
-            WizardStep.Done     => WizardStep.Hotkeys,
-            _                   => CurrentStep,
+            WizardStep.Remote => WizardStep.RepoPath,
+            WizardStep.Hotkeys => WizardStep.Remote,
+            WizardStep.Done => WizardStep.Hotkeys,
+            _ => CurrentStep,
         };
     }
 
@@ -174,9 +174,9 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
     private void ApplySettings()
     {
         _settings.Current.SnippetsDirectory = RepoPath;
-        _settings.Current.SearchHotkey      = SearchHotkey;
-        _settings.Current.QuickAddHotkey    = QuickAddHotkey;
-        _settings.Current.IsFirstRun        = false;
+        _settings.Current.SearchHotkey = SearchHotkey;
+        _settings.Current.QuickAddHotkey = QuickAddHotkey;
+        _settings.Current.IsFirstRun = false;
 
         if (!string.IsNullOrWhiteSpace(RemoteUrl))
         {

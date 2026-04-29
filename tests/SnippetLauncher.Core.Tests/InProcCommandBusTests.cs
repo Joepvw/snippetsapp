@@ -64,5 +64,5 @@ public sealed class InProcCommandBusTests
     }
 
     private sealed record TestCommand(string Payload) : ICommand;
-    private sealed record OtherCommand(string Value)  : ICommand;
+    private sealed record OtherCommand(string Value) : ICommand;
 }

@@ -43,9 +43,9 @@ public sealed class GitService : IGitService
 
     public GitService(string repoPath, IClock clock, IDialogService dialog, PushQueueStore pushQueue)
     {
-        _repoPath  = repoPath;
-        _clock     = clock;
-        _dialog    = dialog;
+        _repoPath = repoPath;
+        _clock = clock;
+        _dialog = dialog;
         _pushQueue = pushQueue;
 
         _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "SnippetLauncher.GitWorker" };
@@ -213,7 +213,7 @@ public sealed class GitService : IGitService
             var mergeOpts = new MergeOptions
             {
                 FileConflictStrategy = CheckoutFileConflictStrategy.Theirs,
-                CommitOnSuccess      = false,
+                CommitOnSuccess = false,
             };
 
             var result = repo.Merge(trackingBranch.Tip, sig, mergeOpts);
@@ -277,7 +277,7 @@ public sealed class GitService : IGitService
             _pushQueue.Enqueue(new PushQueueStore.PushEntry
             {
                 CommitSha = commit.Sha,
-                QueuedAt  = _clock.UtcNow,
+                QueuedAt = _clock.UtcNow,
             });
 
             Status = GitSyncStatus.Behind;
@@ -378,10 +378,10 @@ public sealed class GitService : IGitService
                 var blob = repo.Lookup<Blob>(conflict.Ours.Id);
                 if (blob is not null)
                 {
-                    var stamp      = _clock.UtcNow.ToString("yyyyMMdd-HHmmss");
+                    var stamp = _clock.UtcNow.ToString("yyyyMMdd-HHmmss");
                     var backupName = $"{Path.GetFileNameWithoutExtension(path)}-{stamp}{Path.GetExtension(path)}";
                     var backupPath = Path.Combine(conflictsDir, backupName);
-                    using var inStream  = blob.GetContentStream();
+                    using var inStream = blob.GetContentStream();
                     using var outStream = File.Create(backupPath);
                     inStream.CopyTo(outStream);
                     backed.Add(backupPath);
@@ -395,7 +395,7 @@ public sealed class GitService : IGitService
                 if (theirBlob is not null)
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
-                    using var inStream  = theirBlob.GetContentStream();
+                    using var inStream = theirBlob.GetContentStream();
                     using var outStream = File.Create(localPath);
                     inStream.CopyTo(outStream);
                 }
@@ -415,7 +415,7 @@ public sealed class GitService : IGitService
     // ── Credentials (Git Credential Manager via git credential fill) ─────────
 
     private FetchOptions BuildFetchOptions() => new() { CredentialsProvider = CredentialsProvider };
-    private PushOptions  BuildPushOptions()  => new() { CredentialsProvider = CredentialsProvider };
+    private PushOptions BuildPushOptions() => new() { CredentialsProvider = CredentialsProvider };
 
     private Credentials CredentialsProvider(string url, string? usernameFromUrl, SupportedCredentialTypes types)
     {
@@ -437,17 +437,17 @@ public sealed class GitService : IGitService
         var gitExe = FindGitExe();
         if (gitExe is null) return null;
 
-        var uri   = new Uri(url);
+        var uri = new Uri(url);
         var input = $"protocol={uri.Scheme}\nhost={uri.Host}\n";
         if (!string.IsNullOrEmpty(username)) input += $"username={username}\n";
         input += "\n";
 
         var psi = new ProcessStartInfo(gitExe, "credential fill")
         {
-            RedirectStandardInput  = true,
+            RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            UseShellExecute        = false,
-            CreateNoWindow         = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
         };
 
         using var proc = Process.Start(psi)!;
@@ -503,12 +503,12 @@ public sealed class GitService : IGitService
     {
         private readonly TaskCompletionSource? _tcs;
         protected CompletableOp(TaskCompletionSource? tcs) => _tcs = tcs;
-        public void TrySetResult()    => _tcs?.TrySetResult();
+        public void TrySetResult() => _tcs?.TrySetResult();
         public void TrySetException(Exception ex) => _tcs?.TrySetException(ex);
     }
 
     private sealed class InitOrOpenOp(TaskCompletionSource tcs) : CompletableOp(tcs);
-    private sealed class PullOp(TaskCompletionSource? tcs)       : CompletableOp(tcs);
+    private sealed class PullOp(TaskCompletionSource? tcs) : CompletableOp(tcs);
     private sealed class CommitOp(string message, TaskCompletionSource tcs) : CompletableOp(tcs)
     {
         public string Message { get; } = message;

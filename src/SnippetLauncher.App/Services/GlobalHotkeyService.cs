@@ -15,7 +15,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 {
     private const int WM_HOTKEY = 0x0312;
     private const uint MOD_NOREPEAT = 0x4000;
-    private const int HK_SEARCH   = 1;
+    private const int HK_SEARCH = 1;
     private const int HK_QUICKADD = 2;
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -59,12 +59,12 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     public GlobalHotkeyService(ICommandBus commandBus, SettingsService settings)
     {
         _commandBus = commandBus;
-        _settings   = settings;
-        _searchBinding   = HotkeyBinding.TryParse(settings.Current.SearchHotkey)   ?? DefaultSearch;
+        _settings = settings;
+        _searchBinding = HotkeyBinding.TryParse(settings.Current.SearchHotkey) ?? DefaultSearch;
         _quickAddBinding = HotkeyBinding.TryParse(settings.Current.QuickAddHotkey) ?? DefaultQuickAdd;
     }
 
-    private static HotkeyBinding DefaultSearch   => HotkeyBinding.TryParse("Ctrl+Shift+Space")!.Value;
+    private static HotkeyBinding DefaultSearch => HotkeyBinding.TryParse("Ctrl+Shift+Space")!.Value;
     private static HotkeyBinding DefaultQuickAdd => HotkeyBinding.TryParse("Ctrl+Shift+N")!.Value;
 
     public void Register()
@@ -73,14 +73,15 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
         var p = new HwndSourceParameters("SnippetLauncherHotkeyHost")
         {
-            Width = 0, Height = 0,
+            Width = 0,
+            Height = 0,
             WindowStyle = 0,
             ExtendedWindowStyle = 0x80, // WS_EX_TOOLWINDOW
         };
         _hwndSource = new HwndSource(p);
         _hwndSource.AddHook(WndProc);
 
-        RegisterOne(HK_SEARCH,   _searchBinding,   "Search");
+        RegisterOne(HK_SEARCH, _searchBinding, "Search");
         RegisterOne(HK_QUICKADD, _quickAddBinding, "QuickAdd");
 
         _registered = true;
@@ -173,7 +174,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         var foreground = GetForegroundWindow();
         if (foreground != targetHwnd)
         {
-            var fgThread  = GetWindowThreadProcessId(foreground, out _);
+            var fgThread = GetWindowThreadProcessId(foreground, out _);
             var appThread = GetCurrentThreadId();
             if (fgThread != appThread)
             {

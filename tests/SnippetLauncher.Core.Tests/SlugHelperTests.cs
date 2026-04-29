@@ -6,12 +6,12 @@ namespace SnippetLauncher.Core.Tests;
 public sealed class SlugHelperTests
 {
     [Theory]
-    [InlineData("Hello World",     "hello-world")]
-    [InlineData("FAQ — Prijzen",   "faq-prijzen")]
-    [InlineData("  spaces  ",      "spaces")]
-    [InlineData("a!@#b",           "a-b")]
-    [InlineData("",                "snippet")]
-    [InlineData("   ",             "snippet")]
+    [InlineData("Hello World", "hello-world")]
+    [InlineData("FAQ — Prijzen", "faq-prijzen")]
+    [InlineData("  spaces  ", "spaces")]
+    [InlineData("a!@#b", "a-b")]
+    [InlineData("", "snippet")]
+    [InlineData("   ", "snippet")]
     public void Slugify_VariousInputs(string input, string expected)
         => SlugHelper.Slugify(input).Should().Be(expected);
 

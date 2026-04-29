@@ -21,10 +21,10 @@ public sealed partial class EditorViewModel : ObservableObject
     public IReadOnlyList<string> MalformedPaths => _repository.MalformedSnippetPaths;
 
     // ── Form fields ──────────────────────────────────────────────────────────
-    [ObservableProperty] private string _editTitle    = string.Empty;
-    [ObservableProperty] private string _editTags     = string.Empty;
-    [ObservableProperty] private string _editBody     = string.Empty;
-    [ObservableProperty] private bool   _isNewSnippet;
+    [ObservableProperty] private string _editTitle = string.Empty;
+    [ObservableProperty] private string _editTags = string.Empty;
+    [ObservableProperty] private string _editBody = string.Empty;
+    [ObservableProperty] private bool _isNewSnippet;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
     /// <summary>True when unsaved changes exist. GitService uses this to pause auto-pull.</summary>
@@ -37,8 +37,8 @@ public sealed partial class EditorViewModel : ObservableObject
         _repository = repository;
         _clock = clock;
 
-        _repository.SnippetChanged  += (_, _) => Application.Current.Dispatcher.Invoke(RefreshList);
-        _repository.SnippetRemoved  += (_, _) => Application.Current.Dispatcher.Invoke(RefreshList);
+        _repository.SnippetChanged += (_, _) => Application.Current.Dispatcher.Invoke(RefreshList);
+        _repository.SnippetRemoved += (_, _) => Application.Current.Dispatcher.Invoke(RefreshList);
         RefreshList();
     }
 
@@ -61,21 +61,21 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         if (value is null) { ClearForm(); return; }
 
-        IsNewSnippet       = false;
-        EditTitle          = value.Title;
-        EditTags           = string.Join(", ", value.Tags);
-        EditBody           = value.Body;
-        IsDirty            = false;
-        StatusMessage      = string.Empty;
+        IsNewSnippet = false;
+        EditTitle = value.Title;
+        EditTags = string.Join(", ", value.Tags);
+        EditBody = value.Body;
+        IsDirty = false;
+        StatusMessage = string.Empty;
 
         EditPlaceholders.Clear();
         foreach (var p in value.Placeholders)
             EditPlaceholders.Add(new PlaceholderRowViewModel(p));
     }
 
-    partial void OnEditTitleChanged(string value)   => MarkDirty();
-    partial void OnEditTagsChanged(string value)    => MarkDirty();
-    partial void OnEditBodyChanged(string value)    => MarkDirty();
+    partial void OnEditTitleChanged(string value) => MarkDirty();
+    partial void OnEditTagsChanged(string value) => MarkDirty();
+    partial void OnEditBodyChanged(string value) => MarkDirty();
     private void MarkDirty() { if (!IsNewSnippet || EditTitle.Length > 0) IsDirty = true; }
 
     // ── Commands ─────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ public sealed partial class EditorViewModel : ObservableObject
         SelectedSnippet = null;
         ClearForm();
         IsNewSnippet = true;
-        EditBody     = prefillBody ?? string.Empty;
+        EditBody = prefillBody ?? string.Empty;
         StatusMessage = string.IsNullOrEmpty(prefillBody)
             ? string.Empty
             : "Klembordinhoud voorgevuld als body.";
@@ -97,7 +97,7 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         SelectedSnippet = null;
         ClearForm();
-        IsNewSnippet  = true;
+        IsNewSnippet = true;
         StatusMessage = "Klembord bevat geen tekst — voer body handmatig in.";
     }
 
@@ -131,18 +131,18 @@ public sealed partial class EditorViewModel : ObservableObject
         {
             snippet = SelectedSnippet with
             {
-                Title        = EditTitle.Trim(),
-                Tags         = ParseTags(EditTags),
-                Body         = EditBody,
+                Title = EditTitle.Trim(),
+                Tags = ParseTags(EditTags),
+                Body = EditBody,
                 Placeholders = placeholders,
             };
         }
 
         var saved = await _repository.SaveAsync(snippet);
         SelectedSnippet = saved;
-        IsNewSnippet    = false;
-        IsDirty         = false;
-        StatusMessage   = "Opgeslagen.";
+        IsNewSnippet = false;
+        IsDirty = false;
+        StatusMessage = "Opgeslagen.";
     }
 
     [RelayCommand]
@@ -171,10 +171,10 @@ public sealed partial class EditorViewModel : ObservableObject
 
     private void ClearForm()
     {
-        EditTitle    = string.Empty;
-        EditTags     = string.Empty;
-        EditBody     = string.Empty;
-        IsDirty      = false;
+        EditTitle = string.Empty;
+        EditTags = string.Empty;
+        EditBody = string.Empty;
+        IsDirty = false;
         StatusMessage = string.Empty;
         EditPlaceholders.Clear();
     }

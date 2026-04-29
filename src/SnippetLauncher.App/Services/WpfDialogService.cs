@@ -1,7 +1,7 @@
 using System.Windows;
+using SnippetLauncher.App.Views;
 using SnippetLauncher.Core.Abstractions;
 using SnippetLauncher.Core.Domain;
-using SnippetLauncher.App.Views;
 
 namespace SnippetLauncher.App.Services;
 

@@ -22,7 +22,7 @@ namespace SnippetLauncher.App;
 public partial class App : Application
 {
     private const string MutexName = "SnippetLauncher_SingleInstance_Mutex";
-    private const string PipeName  = "SnippetLauncher_IPC";
+    private const string PipeName = "SnippetLauncher_IPC";
 
     private static readonly string AppDataDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -84,8 +84,8 @@ public partial class App : Application
         if (settingsSvc.IsFirstRun)
         {
             var wizardVm = new FirstRunWizardViewModel(settingsSvc);
-            var wizard   = new FirstRunWizardWindow(wizardVm);
-            var result   = wizard.ShowDialog();
+            var wizard = new FirstRunWizardWindow(wizardVm);
+            var result = wizard.ShowDialog();
             if (result != true)
             {
                 // User closed the wizard without completing → quit
@@ -122,7 +122,7 @@ public partial class App : Application
         _settingsWindow = new SettingsWindow(settingsVm);
 
         // ── Command bus wiring ───────────────────────────────────────────────
-        var bus       = _services.GetRequiredService<ICommandBus>();
+        var bus = _services.GetRequiredService<ICommandBus>();
         var clipboard = _services.GetRequiredService<IClipboardService>();
 
         bus.Subscribe<OpenSearchCommand>(_ =>
@@ -222,12 +222,12 @@ public partial class App : Application
         {
             _trayIcon!.ToolTipText = status switch
             {
-                GitSyncStatus.Syncing  => "Snippet Launcher — Synchroniseren…",
-                GitSyncStatus.Behind   => "Snippet Launcher — Wacht op push",
+                GitSyncStatus.Syncing => "Snippet Launcher — Synchroniseren…",
+                GitSyncStatus.Behind => "Snippet Launcher — Wacht op push",
                 GitSyncStatus.Conflict => "Snippet Launcher — Conflict opgelost",
-                GitSyncStatus.Error    => "Snippet Launcher — Sync fout (klik rechts voor opties)",
+                GitSyncStatus.Error => "Snippet Launcher — Sync fout (klik rechts voor opties)",
                 GitSyncStatus.NoRemote => "Snippet Launcher — Geen remote geconfigureerd",
-                _                      => "Snippet Launcher",
+                _ => "Snippet Launcher",
             };
             if (_trayRetryItem is not null)
                 _trayRetryItem.IsEnabled = status is GitSyncStatus.Error or GitSyncStatus.Behind;
@@ -274,7 +274,7 @@ public partial class App : Application
         var icon = new TaskbarIcon
         {
             ToolTipText = "Snippet Launcher",
-            IconSource  = GetDefaultIcon(),
+            IconSource = GetDefaultIcon(),
         };
         icon.ForceCreate();
 

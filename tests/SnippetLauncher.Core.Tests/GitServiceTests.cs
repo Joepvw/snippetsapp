@@ -196,7 +196,7 @@ public sealed class GitServiceTests : IDisposable
         pushQueue1.Enqueue(new PushQueueStore.PushEntry
         {
             CommitSha = "abc1234",
-            QueuedAt  = _clock.UtcNow,
+            QueuedAt = _clock.UtcNow,
         });
 
         pushQueue1.HasPending.Should().BeTrue();
@@ -290,7 +290,7 @@ public sealed class GitServiceTests : IDisposable
     private (string remoteDir, string localDir) SetupRemoteAndClone()
     {
         var remoteDir = Path.Combine(_root, $"remote-{Guid.NewGuid():N}");
-        var localDir  = Path.Combine(_root, $"local-{Guid.NewGuid():N}");
+        var localDir = Path.Combine(_root, $"local-{Guid.NewGuid():N}");
 
         // Init bare remote
         Repository.Init(remoteDir, isBare: true);
