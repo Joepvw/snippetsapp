@@ -25,5 +25,15 @@ Thumbs.db
 # Test results
 TestResults/
 coverage/
+coverage*/
 *.trx
 *.coverage
+
+# Publish output (built artifacts, not source)
+publish/
+
+# User snippet content (personal, synced separately)
+snippets/
+
+# Per-user Claude Code config
+.claude/

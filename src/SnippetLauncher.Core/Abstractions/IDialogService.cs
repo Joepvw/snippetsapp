@@ -9,6 +9,7 @@ public interface IDialogService
     /// Returns null if the user cancelled.
     /// </summary>
     Task<Dictionary<string, string>?> ShowPlaceholderFillAsync(IReadOnlyList<Placeholder> placeholders);
+    Task<Dictionary<string, string>?> ShowPlaceholderFillAsync(string snippetTitle, IReadOnlyList<Placeholder> placeholders);
 
     /// <summary>
     /// Notifies the user that conflicts were auto-resolved with backups.

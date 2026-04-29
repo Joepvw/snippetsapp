@@ -1,0 +1,201 @@
+<Window x:Class="SnippetLauncher.App.Views.EditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SnippetLauncher.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:EditorViewModel}"
+        Title="Snippet Launcher — Editor"
+        Width="900" Height="640"
+        MinWidth="700" MinHeight="420"
+        Background="#FF1A1A2E"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style TargetType="TextBox">
+            <Setter Property="Background"   Value="#FF252535"/>
+            <Setter Property="Foreground"   Value="White"/>
+            <Setter Property="BorderBrush"  Value="#44FFFFFF"/>
+            <Setter Property="CaretBrush"   Value="White"/>
+            <Setter Property="Padding"      Value="6,5"/>
+            <Setter Property="FontSize"     Value="13"/>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Foreground"   Value="#AAFFFFFF"/>
+            <Setter Property="FontSize"     Value="12"/>
+            <Setter Property="Padding"      Value="0,6,0,2"/>
+        </Style>
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Padding"        Value="12,6"/>
+            <Setter Property="FontSize"       Value="12"/>
+            <Setter Property="Cursor"         Value="Hand"/>
+            <Setter Property="Background"     Value="#FF4D9FFF"/>
+            <Setter Property="Foreground"     Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style x:Key="DangerBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
+            <Setter Property="Background" Value="#FFBF4040"/>
+        </Style>
+        <Style x:Key="SecondaryBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
+            <Setter Property="Background" Value="#FF3A3A4E"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" MinWidth="160"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ── LEFT: snippet list ─────────────────────────────────────────── -->
+        <DockPanel Grid.Column="0" Background="#FF141422">
+
+            <!-- Toolbar -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,8,8,4">
+                <Button Content="+ Nieuw" Style="{StaticResource ActionBtn}"
+                        Command="{Binding NewSnippetCommand}"
+                        CommandParameter="{x:Null}"
+                        Margin="0,0,4,0"/>
+            </StackPanel>
+
+            <!-- Malformed warning -->
+            <Border DockPanel.Dock="Top"
+                    Background="#AA803000" Margin="4,0" Padding="8,6"
+                    CornerRadius="4"
+                    Visibility="{Binding HasMalformed, Converter={StaticResource BoolToVis}}">
+                <TextBlock Foreground="White" FontSize="11" TextWrapping="Wrap"
+                           Text="⚠ Ongeldige bestanden gevonden — open het bestand om te herstellen."/>
+            </Border>
+
+            <!-- Snippet list -->
+            <ListBox ItemsSource="{Binding Snippets}"
+                     SelectedItem="{Binding SelectedSnippet}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     Foreground="White"
+                     Margin="4,4,4,4">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Title}"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="13" Padding="4,4"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding"   Value="0"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#334D9FFF"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+            </ListBox>
+        </DockPanel>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                      Background="#22FFFFFF"/>
+
+        <!-- ── RIGHT: edit form ───────────────────────────────────────────── -->
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20,16">
+
+                <!-- Title -->
+                <Label Content="Titel *"/>
+                <TextBox Text="{Binding EditTitle, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="15"/>
+
+                <!-- Tags -->
+                <Label Content="Tags (komma-gescheiden)"/>
+                <TextBox Text="{Binding EditTags, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <!-- Body -->
+                <Label Content="Body"/>
+                <TextBox Text="{Binding EditBody, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MinHeight="160"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Consolas, Courier New"
+                         FontSize="13"/>
+
+                <!-- Placeholders section -->
+                <Expander Header="Placeholder-definities" Foreground="#AAFFFFFF"
+                          Margin="0,12,0,0" IsExpanded="True">
+                    <StackPanel Margin="0,8,0,0">
+
+                        <TextBlock Foreground="#66FFFFFF" FontSize="11" TextWrapping="Wrap"
+                                   Text="Gebruik {naam} in de body. Ingebouwde tokens: {date}, {time}, {clipboard}. Literal { via {{."
+                                   Margin="0,0,0,8"/>
+
+                        <!-- Header row -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="32"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Naam"    Foreground="#66FFFFFF" FontSize="11" Padding="4,0"/>
+                            <TextBlock Grid.Column="1" Text="Label"   Foreground="#66FFFFFF" FontSize="11" Padding="4,0"/>
+                            <TextBlock Grid.Column="2" Text="Standaard" Foreground="#66FFFFFF" FontSize="11" Padding="4,0"/>
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding EditPlaceholders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:PlaceholderRowViewModel}">
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="32"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{Binding Name,   UpdateSourceTrigger=PropertyChanged}" Margin="0,0,4,0"/>
+                                        <TextBox Grid.Column="1" Text="{Binding Label,  UpdateSourceTrigger=PropertyChanged}" Margin="0,0,4,0"/>
+                                        <TextBox Grid.Column="2" Text="{Binding Default,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,4,0"/>
+                                        <Button  Grid.Column="3" Content="×"
+                                                 Command="{Binding DataContext.RemovePlaceholderRowCommand,
+                                                           RelativeSource={RelativeSource AncestorType=Window}}"
+                                                 CommandParameter="{Binding}"
+                                                 Style="{StaticResource DangerBtn}"
+                                                 Padding="0" Width="28" Height="28"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button Content="+ Rij toevoegen"
+                                Style="{StaticResource SecondaryBtn}"
+                                Command="{Binding AddPlaceholderRowCommand}"
+                                HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Expander>
+
+                <!-- Status + action buttons -->
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#88FFCC88" FontSize="12" Margin="0,12,0,0"
+                           Visibility="{Binding StatusMessage.Length, Converter={StaticResource LenToVis}}"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <Button Content="Opslaan"
+                            Style="{StaticResource ActionBtn}"
+                            Command="{Binding SaveCommand}"
+                            Margin="0,0,8,0" IsDefault="True"/>
+                    <Button Content="Verwijderen"
+                            Style="{StaticResource DangerBtn}"
+                            Command="{Binding DeleteCommand}"
+                            Visibility="{Binding SelectedSnippet, Converter={StaticResource NullToCollapsed}}"/>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

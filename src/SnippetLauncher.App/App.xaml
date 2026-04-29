@@ -1,9 +1,13 @@
-﻿<Application x:Class="SnippetLauncher.App.App"
+<Application x:Class="SnippetLauncher.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:SnippetLauncher.App"
-             StartupUri="MainWindow.xaml">
+             xmlns:conv="clr-namespace:SnippetLauncher.App.Converters"
+             ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-         
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:LengthToVisibilityConverter  x:Key="LenToVis"/>
+        <conv:NullToCollapsedConverter     x:Key="NullToCollapsed"/>
+        <conv:BoolToBrushConverter         x:Key="BoolToBrush"/>
+        <conv:BoolToErrorBrushConverter    x:Key="BoolToErrorBrush"/>
     </Application.Resources>
 </Application>

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Snippets.sln
+
+      - name: Build
+        run: dotnet build Snippets.sln -c Release --no-restore
+
+      - name: Test Core (with coverage)
+        run: >
+          dotnet test tests/SnippetLauncher.Core.Tests/SnippetLauncher.Core.Tests.csproj
+          -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage
+          --logger "github;verbosity=normal"
+
+      - name: Test App (NetArchTest)
+        run: >
+          dotnet test tests/SnippetLauncher.App.Tests/SnippetLauncher.App.Tests.csproj
+          -c Release --no-build
+          --logger "github;verbosity=normal"
+
+      - name: Coverage gate (≥70%)
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem -Recurse coverage -Filter coverage.cobertura.xml | Select-Object -First 1
+          if (-not $file) { Write-Error "Coverage file not found"; exit 1 }
+          $rate = [double]([xml](Get-Content $file.FullName)).coverage.'line-rate'
+          Write-Host "Line coverage: $($rate.ToString('P1'))"
+          if ($rate -lt 0.70) {
+            Write-Error "Coverage $($rate.ToString('P1')) is below the 70% threshold"
+            exit 1
+          }

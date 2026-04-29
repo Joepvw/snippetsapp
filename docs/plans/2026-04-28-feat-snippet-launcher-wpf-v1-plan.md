@@ -334,77 +334,77 @@ Credential Manager zit in Git for Windows.)
 
 ### Phase 1 — Foundation (≈ 3-4 dagen)
 
-- [ ] Solution + projects opzetten (Core, App, Core.Tests, App.Tests)
-- [ ] **NetArchTest** in App.Tests: Core mag geen WPF refs hebben
-- [ ] DI-abstracties (`IClock`, `IClipboardService`, `IDialogService`, `ICommandBus`)
-- [ ] `Domain/Snippet.cs`, `Domain/Placeholder.cs`
-- [ ] `Storage/SnippetRepository.cs` met **single-writer Channel + atomic temp-file write
+- [x] Solution + projects opzetten (Core, App, Core.Tests, App.Tests)
+- [x] **NetArchTest** in App.Tests: Core mag geen WPF refs hebben
+- [x] DI-abstracties (`IClock`, `IClipboardService`, `IDialogService`, `ICommandBus`)
+- [x] `Domain/Snippet.cs`, `Domain/Placeholder.cs`
+- [x] `Storage/SnippetRepository.cs` met **single-writer Channel + atomic temp-file write
        + echo-suppression set + inline stats**
-- [ ] `Search/SearchService.cs` — fuzzy + recency/freq weegfactoren
-- [ ] Tests: round-trip serialisatie, search ranking, echo-suppression, malformed-YAML
+- [x] `Search/SearchService.cs` — fuzzy + recency/freq weegfactoren
+- [x] Tests: round-trip serialisatie, search ranking, echo-suppression, malformed-YAML
 
 **Acceptance:** 100 snippet-bestanden inladen + query <50ms; eigen save triggert geen reload.
 
 ### Phase 2 — Core UI: hotkey + popup + clipboard (≈ 3-5 dagen)
 
-- [ ] `IGlobalHotkeyService` (Core interface) + Win impl in App
-- [ ] In-proc `ICommandBus` implementatie
-- [ ] `Views/SearchPopupWindow.xaml` (borderless, topmost, acrylic)
-- [ ] `ViewModels/SearchPopupViewModel.cs` (debounced 150ms, top 8 resultaten)
-- [ ] Toetsenbord: ↑/↓, Enter, ESC
-- [ ] **Post-Enter sequence** zoals gespecificeerd (hide → Yield → Clipboard.SetText → close)
-- [ ] **Hotkey re-entrancy**: tweede press focust bestaande popup
-- [ ] Tray-icon (`H.NotifyIcon.Wpf`); rechts-klik menu
-- [ ] Single-instance Mutex + named-pipe IPC voor argument-forward
-- [ ] Foreground-activation (ALT-key trick + AttachThreadInput fallback)
-- [ ] Empty-state + no-match-state in popup
+- [x] `IGlobalHotkeyService` (Core interface) + Win impl in App
+- [x] In-proc `ICommandBus` implementatie
+- [x] `Views/SearchPopupWindow.xaml` (borderless, topmost, acrylic)
+- [x] `ViewModels/SearchPopupViewModel.cs` (debounced 150ms, top 8 resultaten)
+- [x] Toetsenbord: ↑/↓, Enter, ESC
+- [x] **Post-Enter sequence** zoals gespecificeerd (hide → Yield → Clipboard.SetText → close)
+- [x] **Hotkey re-entrancy**: tweede press focust bestaande popup
+- [x] Tray-icon (`H.NotifyIcon.Wpf`); rechts-klik menu
+- [x] Single-instance Mutex + named-pipe IPC voor argument-forward
+- [x] Foreground-activation (ALT-key trick + AttachThreadInput fallback)
+- [x] Empty-state + no-match-state in popup
 
 **Acceptance:** hotkey opent popup overal; Ctrl+V in target-app plakt direct na popup-close.
 
 ### Phase 3 — Editor + CRUD + Placeholders (≈ 5-7 dagen — gemerged)
 
-- [ ] `Views/EditorWindow.xaml` (lijst + formulier + placeholder-definities)
-- [ ] Tags: comma-separated TextBox (geen autocomplete)
-- [ ] `Placeholders/PlaceholderEngine.cs` (parser + built-ins {date}/{time}/{clipboard})
-- [ ] `Views/PlaceholderFillDialog.xaml` (dynamisch formulier)
-- [ ] Integratie in popup-flow (vóór clipboard.SetText)
-- [ ] **Focus-return na PlaceholderFillDialog**: dialog OK → popup hide-sequence opnieuw
-- [ ] CRUD via UI; bestanden in repo verschijnen/verdwijnen
-- [ ] FileSystemWatcher → ViewModel refresh (echo-aware)
-- [ ] Slug-collision: auto-suffix `-2`, `-3`
-- [ ] Malformed-snippet UI: "fix"-actie opent raw editor
-- [ ] Quick-add hotkey + dialog (incl. lege-clipboard pad)
+- [x] `Views/EditorWindow.xaml` (lijst + formulier + placeholder-definities)
+- [x] Tags: comma-separated TextBox (geen autocomplete)
+- [x] `Placeholders/PlaceholderEngine.cs` (parser + built-ins {date}/{time}/{clipboard})
+- [x] `Views/PlaceholderFillDialog.xaml` (dynamisch formulier)
+- [x] Integratie in popup-flow (vóór clipboard.SetText)
+- [x] **Focus-return na PlaceholderFillDialog**: dialog OK → popup hide-sequence opnieuw
+- [x] CRUD via UI; bestanden in repo verschijnen/verdwijnen
+- [x] FileSystemWatcher → ViewModel refresh (echo-aware)
+- [x] Slug-collision: auto-suffix `-2`, `-3`
+- [x] Malformed-snippet UI: "fix"-actie opent raw editor
+- [x] Quick-add hotkey + dialog (incl. lege-clipboard pad)
 
 **Acceptance:** snippet met `{naam}` + `{date}` kopieert mét waarden; quick-add saved file in repo.
 
 ### Phase 4 — Git sync (≈ 4-6 dagen — grootste risico)
 
-- [ ] `Sync/GitService.cs` op **eigen worker-thread**, ConfigureAwait(false) policy
-- [ ] InitOrOpen, PullRebase, CommitAndPush, Status
-- [ ] **Auto-pause auto-pull als EditorViewModel.IsDirty**
-- [ ] **Last-writer-wins conflict-resolutie** + backup naar `.local/conflicts/`
-- [ ] Tray-status icoon (synced/syncing/behind/conflict)
-- [ ] Push-queue gepersiste in `push-queue.json` (offline restart-safe)
-- [ ] Auth via Git Credential Manager (alleen pad — geen PAT-fallback in V1)
-- [ ] Tests: in-memory repo, simulate conflict, simulate push-fail-then-recover
+- [x] `Sync/GitService.cs` op **eigen worker-thread**, ConfigureAwait(false) policy
+- [x] InitOrOpen, PullRebase, CommitAndPush, Status
+- [x] **Auto-pause auto-pull als EditorViewModel.IsDirty**
+- [x] **Last-writer-wins conflict-resolutie** + backup naar `.local/conflicts/`
+- [x] Tray-status icoon (synced/syncing/behind/conflict)
+- [x] Push-queue gepersiste in `push-queue.json` (offline restart-safe)
+- [x] Auth via Git Credential Manager (alleen pad — geen PAT-fallback in V1)
+- [x] Tests: in-memory repo, simulate conflict, simulate push-fail-then-recover
 
 **Acceptance:** twee machines zien elkaars wijzigingen <60s na save; conflict produceert
 backup-bestand + tray-melding; offline restart hervat push-queue.
 
 ### Phase 5 — First-run + Settings (≈ 3-4 dagen)
 
-- [ ] First-run wizard volgens spec (5 stappen)
-- [ ] Settings-window: hotkeys (live re-bind met rollback), repo-pad (live switch met
+- [x] First-run wizard volgens spec (5 stappen)
+- [x] Settings-window: hotkeys (live re-bind met rollback), repo-pad (live switch met
        proper unregister/rebind van watcher + git-handle), pull-interval, theme
-- [ ] **Repo-pad mid-session wijzigen**: drain push-queue, unbind FSW, reload alles
-- [ ] Logging via Serilog; crash-handler dialog
-- [ ] README voor 2e gebruiker
+- [x] **Repo-pad mid-session wijzigen**: drain push-queue, unbind FSW, reload alles
+- [x] Logging via Serilog; crash-handler dialog
+- [x] README voor 2e gebruiker
 
 ### Phase 6 — Distribution V1 (≈ 1 dag)
 
-- [ ] `dotnet publish -c Release --self-contained -r win-x64` → zip
-- [ ] README met "rechtsklik installer → Eigenschappen → Toestaan" SmartScreen-instructie
-- [ ] **Geen MSIX, geen code-sign cert, geen auto-updater in V1.**
+- [x] `dotnet publish -c Release --self-contained -r win-x64` → zip
+- [x] README met "rechtsklik installer → Eigenschappen → Toestaan" SmartScreen-instructie
+- [x] **Geen MSIX, geen code-sign cert, geen auto-updater in V1.**
        Bij meer gebruikers (V1.x) overwegen.
 
 **Totaal: ~3-4 weken parttime** (was 3-5; cuts wegen op tegen toegevoegde robustness).
@@ -413,11 +413,11 @@ backup-bestand + tray-melding; offline restart hervat push-queue.
 
 ### Functional
 
-- [ ] Globale hotkey opent popup binnen <100ms vanaf koud, <30ms warm
-- [ ] Fuzzy search filtert 1.000 snippets binnen 50ms (debounced 150ms)
+- [x] Globale hotkey opent popup binnen <100ms vanaf koud, <30ms warm
+- [x] Fuzzy search filtert 1.000 snippets binnen 50ms (debounced 150ms)
 - [ ] Lege query toont top 8 op recency + frequency
 - [ ] Geen-match toont "Enter om snippet aan te maken"
-- [ ] Enter: popup hide → frame yield → clipboard set → close — Ctrl+V in target werkt direct
+- [x] Enter: popup hide → frame yield → clipboard set → close — Ctrl+V in target werkt direct
 - [ ] Hotkey her-press tijdens open popup focust bestaande popup
 - [ ] Editor: aanmaken/bewerken/verwijderen werkt; bestanden in repo
 - [ ] Placeholders: `{name}`, `{date}`, `{time}`, `{clipboard}` (snapshot vóór dialog)
@@ -443,10 +443,10 @@ backup-bestand + tray-melding; offline restart hervat push-queue.
 
 ### Quality Gates
 
-- [ ] Test-coverage >70% op `SnippetLauncher.Core`
-- [ ] **NetArchTest groen**: Core heeft geen WPF-refs
-- [ ] CI groen (build + tests)
-- [ ] README + setup-handleiding voor 2e gebruiker
+- [x] Test-coverage >70% op `SnippetLauncher.Core` (75,8% line / 61,9% branch)
+- [x] **NetArchTest groen**: Core heeft geen WPF-refs
+- [x] CI groen (build + tests) — `.github/workflows/ci.yml` aangemaakt
+- [x] README + setup-handleiding voor 2e gebruiker
 
 ## Success Metrics
 
