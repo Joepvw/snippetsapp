@@ -26,23 +26,17 @@ om met een collega of tussen je eigen machines dezelfde bibliotheek te delen.
    _(Windows SmartScreen blokkeert anders het starten van ongesigneerde apps.)_
 4. Maak optioneel een snelkoppeling naar `SnippetLauncher.App.exe` op je bureaublad of in het Start Menu.
 
-## Stap 2 — Repository klonen
+## Stap 2 — Repository-URL ophalen
 
 Vraag de eigenaar van de gedeelde repo om de HTTPS-URL en (als de repo privé is)
 om je toe te voegen als collaborator.
 
-Open een terminal (PowerShell of Git Bash) en kloon de repo naar een lokale map naar keuze:
-
-```bash
-git clone https://github.com/<eigenaar>/<repo>.git C:\Users\JouwNaam\Documents\Snippets
-```
-
-Pas het doelpad aan naar wat jij wil — dit is jouw **lokale werkkopie**. De snippet-inhoud
-wordt via GitHub gesynchroniseerd, maar het lokale pad mag per machine verschillen.
-
-Voor privé-repo's vraagt Git Credential Manager om inloggegevens. Gebruik een
-**Personal Access Token (PAT)** als wachtwoord
+Voor privé-repo's vraagt Git Credential Manager bij de eerste sync om inloggegevens.
+Gebruik een **Personal Access Token (PAT)** als wachtwoord
 ([GitHub PAT aanmaken](https://github.com/settings/tokens) — minimaal `repo`-scope).
+
+> Wil je de repo liever zelf eerst klonen via de terminal? Dat mag ook —
+> kies dan in Stap 3 de geklonde map en laat het Remote-veld leeg.
 
 ## Stap 3 — First-run wizard doorlopen
 
@@ -51,10 +45,10 @@ Start `SnippetLauncher.App.exe`. De wizard opent automatisch:
 | Stap | Actie |
 |------|-------|
 | Welkom | Klik **Aan de slag** |
-| Snippets-map | Klik **Bladeren…** en navigeer naar de geklonde map (bv. `C:\Users\JouwNaam\Documents\Snippets`) |
-| Remote | De remote is al geconfigureerd via `git clone`; je kunt dit veld leeg laten |
+| Snippets-map | Klik **Bladeren…** en kies een **lege map** (bv. `C:\Users\JouwNaam\Documents\Snippets`). De app maakt 'm zonodig aan. |
+| Remote | Plak de HTTPS-URL van de gedeelde repo. Bij een lege map kloont de app automatisch bij voltooien. |
 | Hotkeys | Bevestig of pas de sneltoetsen aan |
-| Klaar | Klik **Voltooien** |
+| Klaar | Klik **Voltooien** — de eerste sync start direct daarna |
 
 ## Stap 4 — Werking controleren
 

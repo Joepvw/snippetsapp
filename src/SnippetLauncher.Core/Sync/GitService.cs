@@ -14,6 +14,7 @@ namespace SnippetLauncher.Core.Sync;
 public sealed class GitService : IGitService
 {
     private readonly string _repoPath;
+    private readonly string? _remoteUrl;
     private readonly IClock _clock;
     private readonly IDialogService _dialog;
     private readonly PushQueueStore _pushQueue;
@@ -41,9 +42,10 @@ public sealed class GitService : IGitService
 
     public event EventHandler<GitSyncStatus>? StatusChanged;
 
-    public GitService(string repoPath, IClock clock, IDialogService dialog, PushQueueStore pushQueue)
+    public GitService(string repoPath, IClock clock, IDialogService dialog, PushQueueStore pushQueue, string? remoteUrl = null)
     {
         _repoPath = repoPath;
+        _remoteUrl = string.IsNullOrWhiteSpace(remoteUrl) ? null : remoteUrl.Trim();
         _clock = clock;
         _dialog = dialog;
         _pushQueue = pushQueue;
@@ -147,12 +149,40 @@ public sealed class GitService : IGitService
     {
         if (!Repository.IsValid(_repoPath))
         {
-            Repository.Init(_repoPath);
-            Log.Information("GitService: initialized new repo at {Path}", _repoPath);
+            Directory.CreateDirectory(_repoPath);
+            var isEmpty = !Directory.EnumerateFileSystemEntries(_repoPath).Any();
+
+            if (_remoteUrl is not null && isEmpty)
+            {
+                try
+                {
+                    Status = GitSyncStatus.Syncing;
+                    Repository.Clone(_remoteUrl, _repoPath, new CloneOptions
+                    {
+                        FetchOptions = { CredentialsProvider = CredentialsProvider },
+                    });
+                    Log.Information("GitService: cloned {Url} into {Path}", _remoteUrl, _repoPath);
+                    Status = GitSyncStatus.Idle;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "GitService: clone failed, falling back to init");
+                    Status = GitSyncStatus.Error;
+                    Repository.Init(_repoPath);
+                    EnsureOriginConfigured();
+                }
+            }
+            else
+            {
+                Repository.Init(_repoPath);
+                Log.Information("GitService: initialized new repo at {Path}", _repoPath);
+                EnsureOriginConfigured();
+            }
         }
         else
         {
             Log.Information("GitService: opened existing repo at {Path}", _repoPath);
+            EnsureOriginConfigured();
         }
 
         // Drain any push queue left over from a previous session
@@ -160,6 +190,77 @@ public sealed class GitService : IGitService
         {
             Log.Information("GitService: {Count} entries in push queue from previous session — retrying", _pushQueue.Pending.Count);
             ExecutePush();
+        }
+    }
+
+    private void EnsureOriginConfigured()
+    {
+        if (_remoteUrl is null) return;
+        if (!Repository.IsValid(_repoPath)) return;
+
+        try
+        {
+            using var repo = new Repository(_repoPath);
+            var existing = repo.Network.Remotes["origin"];
+            if (existing is null)
+            {
+                repo.Network.Remotes.Add("origin", _remoteUrl);
+                Log.Information("GitService: added origin {Url}", _remoteUrl);
+            }
+            else if (!string.Equals(existing.Url, _remoteUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                repo.Network.Remotes.Update("origin", r => r.Url = _remoteUrl);
+                Log.Information("GitService: updated origin URL to {Url}", _remoteUrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "GitService: failed to ensure origin remote");
+        }
+    }
+
+    private bool BootstrapFromRemote(Repository repo)
+    {
+        // Local repo has no commits yet — fetch from origin and check out the default branch.
+        try
+        {
+            var origin = repo.Network.Remotes["origin"];
+            if (origin is null) return false;
+
+            var fetchSpecs = origin.FetchRefSpecs.Select(r => r.Specification).ToList();
+            LibGit2Sharp.Commands.Fetch(repo, "origin", fetchSpecs, BuildFetchOptions(), null);
+
+            // Resolve origin's default branch (origin/HEAD), fall back to common names.
+            string? remoteBranchName =
+                repo.Refs["refs/remotes/origin/HEAD"]?.ResolveToDirectReference()?.CanonicalName
+                ?? (repo.Branches["origin/main"] is not null ? "refs/remotes/origin/main" : null)
+                ?? (repo.Branches["origin/master"] is not null ? "refs/remotes/origin/master" : null);
+
+            if (remoteBranchName is null)
+            {
+                Log.Warning("GitService: could not determine default branch on origin — empty remote?");
+                return false;
+            }
+
+            var remoteBranch = repo.Branches[remoteBranchName.Replace("refs/remotes/", "")];
+            if (remoteBranch is null) return false;
+
+            var localName = remoteBranch.FriendlyName.StartsWith("origin/")
+                ? remoteBranch.FriendlyName["origin/".Length..]
+                : remoteBranch.FriendlyName;
+
+            var localBranch = repo.CreateBranch(localName, remoteBranch.Tip);
+            repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
+            LibGit2Sharp.Commands.Checkout(repo, localBranch);
+            repo.Refs.UpdateTarget("HEAD", localBranch.CanonicalName);
+
+            Log.Information("GitService: bootstrapped from {Branch}", remoteBranch.FriendlyName);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "GitService: bootstrap from remote failed");
+            return false;
         }
     }
 
@@ -181,8 +282,12 @@ public sealed class GitService : IGitService
 
             if (repo.Head.Tip is null)
             {
-                // Empty repo — nothing to pull
-                Status = GitSyncStatus.Idle;
+                // Local repo has no commits yet — try to bootstrap from the remote's default branch.
+                // This recovers from `git init` against an empty folder where a clone was needed.
+                if (BootstrapFromRemote(repo))
+                    Status = GitSyncStatus.Idle;
+                else
+                    Status = GitSyncStatus.Idle;
                 return;
             }
 

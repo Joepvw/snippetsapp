@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-04-30
+
+### Fixed
+- First-run wizard now clones the configured remote into an empty target folder instead of `git init` + dangling origin (which left the snippet library empty for second users). `RemoteUrl` is also persisted in settings, and an existing init-only repo with a configured origin will now bootstrap from the remote's default branch on the next pull. Wizard documentation in `docs/setup-second-user.md` updated accordingly.
+
 ### Documentation
 - Added `CLAUDE.md` with release procedure for future Claude Code sessions.
 - Expanded `README.md` with feature list, placeholder syntax reference, sync model diagram, and roadmap.
@@ -38,5 +43,6 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Joepvw/snippetsapp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Joepvw/snippetsapp/releases/tag/v1.0.0

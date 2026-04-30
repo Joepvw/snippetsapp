@@ -176,13 +176,8 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
         _settings.Current.SnippetsDirectory = RepoPath;
         _settings.Current.SearchHotkey = SearchHotkey;
         _settings.Current.QuickAddHotkey = QuickAddHotkey;
+        _settings.Current.RemoteUrl = (RemoteUrl ?? "").Trim();
         _settings.Current.IsFirstRun = false;
-
-        if (!string.IsNullOrWhiteSpace(RemoteUrl))
-        {
-            // Stored for GitService to pick up when it initialises the repo
-            // (Phase 4 — GitService reads this from settings)
-        }
 
         _settings.Save();
     }

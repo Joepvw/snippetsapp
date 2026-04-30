@@ -215,7 +215,8 @@ public partial class App : Application
             settingsSvc.Current.SnippetsDirectory,
             _services!.GetRequiredService<IClock>(),
             _services!.GetRequiredService<IDialogService>(),
-            new PushQueueStore(pushQueuePath));
+            new PushQueueStore(pushQueuePath),
+            settingsSvc.Current.RemoteUrl);
 
         // Update tray tooltip on status change
         gitSvc.StatusChanged += (_, status) => Dispatcher.Invoke(() =>
