@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-04-30
+
+### Added
+- Settings → **Opslag** tab toont en bewerkt nu de GitHub-remote URL (was alleen wizard-only). Wijzigen herbouwt automatisch de `GitService` zodat de nieuwe origin direct actief is.
+- Knop **Nu synchroniseren** in Settings én tray triggert nu een directe pull *gevolgd door* push (was push-only). Eerste plek om te kijken als snippets niet verschijnen.
+- Versienummer zichtbaar in de Settings-footer en in de tray-tooltip — gevuld vanuit `AssemblyInformationalVersionAttribute` (= `Directory.Build.props`).
+- `IGitService.PullNowAsync()` voor handmatige fetch + merge.
+
+### Changed
+- Wizard-copy verduidelijkt: "Snippets-map kiezen" → "Lokale werkmap kiezen" met uitleg dat de map een lokale werkkopie is en GitHub de sync-backend.
+
 ## [1.0.1] — 2026-04-30
 
 ### Fixed
@@ -43,6 +54,7 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Joepvw/snippetsapp/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Joepvw/snippetsapp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Joepvw/snippetsapp/releases/tag/v1.0.0

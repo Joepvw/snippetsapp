@@ -61,10 +61,11 @@
 
                 <!-- Step 2: Repo path -->
                 <StackPanel Visibility="{Binding IsRepoPath, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Style="{StaticResource PageTitle}" Text="Snippets-map kiezen"/>
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Lokale werkmap kiezen"/>
                     <TextBlock Style="{StaticResource Body}">
-                        Kies een lege map of een bestaande Git-clone voor je snippets.
-                        De app maakt hier een Git-repository aan als die er nog niet is.
+                        Snippet Launcher bewaart je snippets in een lokale map op deze computer
+                        en synchroniseert die met GitHub. Kies een lege map (de app maakt 'm zonodig aan)
+                        of een bestaande Git-clone.
                     </TextBlock>
                     <TextBlock Style="{StaticResource Label}" Text="Map"/>
                     <Grid>
@@ -83,8 +84,9 @@
                 <StackPanel Visibility="{Binding IsRemote, Converter={StaticResource BoolToVis}}">
                     <TextBlock Style="{StaticResource PageTitle}" Text="Git-remote koppelen (optioneel)"/>
                     <TextBlock Style="{StaticResource Body}">
-                        Voer de URL van je Git-remote in om snippets te synchroniseren met een tweede computer.
-                        Je kunt dit ook later instellen via Instellingen → Opslag.
+                        Plak de HTTPS-URL van de GitHub-repo waarmee je wil synchroniseren.
+                        Bij een lege map kloont de app automatisch bij voltooien.
+                        Je kunt dit later wijzigen via Instellingen → Opslag.
                     </TextBlock>
                     <TextBlock Style="{StaticResource Label}" Text="Remote URL"/>
                     <TextBox Text="{Binding RemoteUrl, UpdateSourceTrigger=PropertyChanged}"

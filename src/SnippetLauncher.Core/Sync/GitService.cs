@@ -77,6 +77,13 @@ public sealed class GitService : IGitService
         return tcs.Task;
     }
 
+    public Task PullNowAsync()
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _channel.Writer.TryWrite(new PullOp(tcs));
+        return tcs.Task;
+    }
+
     public void StartAutoSync(int pullIntervalSeconds, Func<bool> isEditorDirty)
     {
         _isEditorDirty = isEditorDirty;

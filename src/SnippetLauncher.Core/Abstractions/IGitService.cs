@@ -10,5 +10,6 @@ public interface IGitService : IDisposable
     Task InitOrOpenAsync();
     Task CommitAndQueuePushAsync(string message);
     Task RetryPushNowAsync();
+    Task PullNowAsync();
     void StartAutoSync(int pullIntervalSeconds, Func<bool> isEditorDirty);
 }

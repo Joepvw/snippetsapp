@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Pipes;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using H.NotifyIcon;
@@ -24,6 +25,12 @@ public partial class App : Application
     private const string MutexName = "SnippetLauncher_SingleInstance_Mutex";
     private const string PipeName = "SnippetLauncher_IPC";
 
+    private static readonly string AppVersion =
+        "v" + (Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)
+            ?? "?");
+
     private static readonly string AppDataDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "SnippetLauncher");
@@ -36,6 +43,7 @@ public partial class App : Application
     private EditorWindow? _editor;
     private SettingsWindow? _settingsWindow;
     private GitService? _gitService;
+    private SnippetRepository? _activeRepository;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -119,6 +127,8 @@ public partial class App : Application
 
         var settingsVm = _services.GetRequiredService<SettingsViewModel>();
         settingsVm.RepoPathChanged += OnRepoPathChanged;
+        settingsVm.RemoteUrlChanged += OnRemoteUrlChanged;
+        settingsVm.SyncNowRequested += (_, _) => _ = SyncNowAsync();
         _settingsWindow = new SettingsWindow(settingsVm);
 
         // ── Command bus wiring ───────────────────────────────────────────────
@@ -153,6 +163,7 @@ public partial class App : Application
 
         // ── Repository load ──────────────────────────────────────────────────
         var snippetRepo = _services.GetRequiredService<SnippetRepository>();
+        _activeRepository = snippetRepo;
         _ = snippetRepo.LoadAllAsync();
 
         // ── Git sync ─────────────────────────────────────────────────────────
@@ -223,12 +234,12 @@ public partial class App : Application
         {
             _trayIcon!.ToolTipText = status switch
             {
-                GitSyncStatus.Syncing => "Snippet Launcher — Synchroniseren…",
-                GitSyncStatus.Behind => "Snippet Launcher — Wacht op push",
-                GitSyncStatus.Conflict => "Snippet Launcher — Conflict opgelost",
-                GitSyncStatus.Error => "Snippet Launcher — Sync fout (klik rechts voor opties)",
-                GitSyncStatus.NoRemote => "Snippet Launcher — Geen remote geconfigureerd",
-                _ => "Snippet Launcher",
+                GitSyncStatus.Syncing => $"Snippet Launcher {AppVersion} — Synchroniseren…",
+                GitSyncStatus.Behind => $"Snippet Launcher {AppVersion} — Wacht op push",
+                GitSyncStatus.Conflict => $"Snippet Launcher {AppVersion} — Conflict opgelost",
+                GitSyncStatus.Error => $"Snippet Launcher {AppVersion} — Sync fout (klik rechts voor opties)",
+                GitSyncStatus.NoRemote => $"Snippet Launcher {AppVersion} — Geen remote geconfigureerd",
+                _ => $"Snippet Launcher {AppVersion}",
             };
             if (_trayRetryItem is not null)
                 _trayRetryItem.IsEnabled = status is GitSyncStatus.Error or GitSyncStatus.Behind;
@@ -264,17 +275,38 @@ public partial class App : Application
             await newRepo.LoadAllAsync();
 
             var settingsSvc = _services!.GetRequiredService<SettingsService>();
+            _activeRepository = newRepo;
             _gitService = BuildGitService(settingsSvc, newRepo);
 
             Log.Information("Repository reloaded at {Path}", newPath);
         });
     }
 
+    private void OnRemoteUrlChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (_activeRepository is null) return;
+            _gitService?.Dispose();
+            var settingsSvc = _services!.GetRequiredService<SettingsService>();
+            _gitService = BuildGitService(settingsSvc, _activeRepository);
+            Log.Information("GitService rebuilt for new remote URL");
+        });
+    }
+
+    private async Task SyncNowAsync()
+    {
+        var svc = _gitService;
+        if (svc is null) return;
+        await svc.PullNowAsync();
+        await svc.RetryPushNowAsync();
+    }
+
     private TaskbarIcon BuildTrayIcon()
     {
         var icon = new TaskbarIcon
         {
-            ToolTipText = "Snippet Launcher",
+            ToolTipText = $"Snippet Launcher {AppVersion}",
             IconSource = GetDefaultIcon(),
         };
         icon.ForceCreate();
@@ -292,7 +324,7 @@ public partial class App : Application
         menu.Items.Add(new Separator());
 
         var syncItem = new MenuItem { Header = "Nu synchroniseren" };
-        syncItem.Click += (_, _) => _ = _gitService?.RetryPushNowAsync();
+        syncItem.Click += (_, _) => _ = SyncNowAsync();
         menu.Items.Add(syncItem);
 
         _trayRetryItem = new MenuItem { Header = "Push opnieuw proberen", IsEnabled = false };

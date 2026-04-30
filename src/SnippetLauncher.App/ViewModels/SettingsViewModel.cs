@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SnippetLauncher.App.Services;
@@ -17,6 +18,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _suppressStartAtLoginHandler;
 
     [ObservableProperty] private string _repoPath = "";
+    [ObservableProperty] private string _remoteUrl = "";
     [ObservableProperty] private string _searchHotkey = "";
     [ObservableProperty] private string _quickAddHotkey = "";
     [ObservableProperty] private int _pullIntervalSeconds = 60;
@@ -27,10 +29,31 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public string[] Themes { get; } = ["System", "Light", "Dark"];
 
+    public string AppVersion
+    {
+        get
+        {
+            var asm = Assembly.GetExecutingAssembly();
+            var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            return $"v{info ?? asm.GetName().Version?.ToString(3) ?? "?"}";
+        }
+    }
+
     /// <summary>
     /// Raised when the user saves repo-path changes — caller must reload the repository.
     /// </summary>
     public event EventHandler<string>? RepoPathChanged;
+
+    /// <summary>
+    /// Raised when the user changes the Git remote URL — caller must rebuild the GitService
+    /// so the new URL is applied (clone / origin update).
+    /// </summary>
+    public event EventHandler? RemoteUrlChanged;
+
+    /// <summary>
+    /// Raised when the user clicks "Nu synchroniseren" — caller must trigger a pull + push.
+    /// </summary>
+    public event EventHandler? SyncNowRequested;
 
     public SettingsViewModel(SettingsService settings, IGlobalHotkeyService hotkey, SnippetRepository repository, WindowsStartupService startupService)
     {
@@ -44,6 +67,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void LoadFromSettings()
     {
         RepoPath = _settings.Current.SnippetsDirectory;
+        RemoteUrl = _settings.Current.RemoteUrl;
         SearchHotkey = _settings.Current.SearchHotkey;
         QuickAddHotkey = _settings.Current.QuickAddHotkey;
         PullIntervalSeconds = _settings.Current.PullIntervalSeconds;
@@ -169,6 +193,31 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         RepoPathChanged?.Invoke(this, newPath);
         ShowSuccess("Snippets-map bijgewerkt. De app herlaadt de repository.");
+    }
+
+    [RelayCommand]
+    private void ApplyRemoteUrl()
+    {
+        var newUrl = (RemoteUrl ?? "").Trim();
+        if (newUrl == _settings.Current.RemoteUrl)
+        {
+            ShowSuccess("Remote URL ongewijzigd.");
+            return;
+        }
+
+        _settings.Current.RemoteUrl = newUrl;
+        _settings.Save();
+        RemoteUrlChanged?.Invoke(this, EventArgs.Empty);
+        ShowSuccess(string.IsNullOrEmpty(newUrl)
+            ? "Remote URL gewist."
+            : "Remote URL bijgewerkt. Klik op 'Nu synchroniseren' om snippets op te halen.");
+    }
+
+    [RelayCommand]
+    private void SyncNow()
+    {
+        SyncNowRequested?.Invoke(this, EventArgs.Empty);
+        ShowSuccess("Synchronisatie gestart…");
     }
 
     [RelayCommand]
