@@ -45,10 +45,16 @@ Start `SnippetLauncher.App.exe`. De wizard opent automatisch:
 | Stap | Actie |
 |------|-------|
 | Welkom | Klik **Aan de slag** |
-| Snippets-map | Klik **Bladeren…** en kies een **lege map** (bv. `C:\Users\JouwNaam\Documents\Snippets`). De app maakt 'm zonodig aan. |
+| Snippets-map | Klik **Bladeren…** en kies een **lege map buiten OneDrive/Dropbox** (bv. `C:\Users\JouwNaam\Documents\Snippets`). De app maakt 'm zonodig aan. ⚠️ Zie waarschuwing hieronder. |
 | Remote | Plak de HTTPS-URL van de gedeelde repo. Bij een lege map kloont de app automatisch bij voltooien. |
 | Hotkeys | Bevestig of pas de sneltoetsen aan |
 | Klaar | Klik **Voltooien** — de eerste sync start direct daarna |
+
+> ⚠️ **Plaats de snippets-map NIET in OneDrive, Dropbox, Google Drive of een andere cloudsync-map.**
+> Snippet Launcher gebruikt zelf Git om met GitHub te synchroniseren. Cloudsync-tools synchroniseren
+> óók de `.git/`-mapinhoud, en die botsen dan met Git's eigen file-locks (`index.lock`).
+> Dat veroorzaakt corrupte commits, vastlopende sync en willekeurige fouten bij afsluiten.
+> Kies een gewone lokale map zoals `C:\Users\<naam>\Documents\Snippets` — GitHub is al je back-up.
 
 ## Stap 4 — Werking controleren
 

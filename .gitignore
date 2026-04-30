@@ -43,3 +43,6 @@ snippets/
 .claude/todos/
 .claude/statsig/
 .claude/shell-snapshots/
+
+# User-shared diagnostic logs (may contain personal paths)
+docs/userlogs/

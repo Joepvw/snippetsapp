@@ -281,10 +281,14 @@ public sealed class SnippetRepository : IDisposable
         return Convert.ToHexString(bytes);
     }
 
+    private bool _disposed;
     public void Dispose()
     {
-        _cts.Cancel();
-        _channel.Writer.Complete();
+        if (_disposed) return;
+        _disposed = true;
+
+        try { _cts.Cancel(); } catch (ObjectDisposedException) { }
+        try { _channel.Writer.Complete(); } catch { }
         _watcher?.Dispose();
         _usage.Dispose();
         _cts.Dispose();

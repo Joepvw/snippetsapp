@@ -36,6 +36,7 @@ public partial class App : Application
         "SnippetLauncher");
 
     private Mutex? _mutex;
+    private bool _ownsMutex;
     private ServiceProvider? _services;
     private TaskbarIcon? _trayIcon;
     private MenuItem? _trayRetryItem;
@@ -78,6 +79,7 @@ public partial class App : Application
 
         // ── Single-instance guard ────────────────────────────────────────────
         _mutex = new Mutex(true, MutexName, out var isNew);
+        _ownsMutex = isNew;
         if (!isNew)
         {
             ForwardArgsToRunningInstance(e.Args);
@@ -414,7 +416,11 @@ public partial class App : Application
         _gitService?.Dispose();
         _trayIcon?.Dispose();
         _services?.Dispose();
-        _mutex?.ReleaseMutex();
+        if (_ownsMutex && _mutex is not null)
+        {
+            try { _mutex.ReleaseMutex(); }
+            catch (ApplicationException) { /* mutex held on a different thread — let Dispose clean it up */ }
+        }
         _mutex?.Dispose();
         Log.CloseAndFlush();
         base.OnExit(e);

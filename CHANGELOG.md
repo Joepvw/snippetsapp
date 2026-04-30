@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-04-30
+
+### Fixed
+- Mutex-crash bij dubbel-starten van de app: `ReleaseMutex()` wordt nu alleen aangeroepen als deze instance ownership heeft (niet wanneer een tweede instance afsluit nadat de args zijn doorgegeven aan de draaiende instance).
+- `ObjectDisposedException` bij afsluiten in `SnippetRepository.Dispose()`: dispose is nu idempotent, dubbele aanroepen (DI-container + handmatig vanuit `OnRepoPathChanged`/`OnExit`) gaan stil.
+
+### Documentation
+- `docs/setup-second-user.md` waarschuwt expliciet tegen het plaatsen van de snippets-map in OneDrive / Dropbox / Google Drive — cloudsync conflicteert met Git's eigen `.git/`-locks.
+
 ## [1.0.2] — 2026-04-30
 
 ### Added
@@ -54,7 +63,8 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/Joepvw/snippetsapp/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Joepvw/snippetsapp/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Joepvw/snippetsapp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Joepvw/snippetsapp/releases/tag/v1.0.0
