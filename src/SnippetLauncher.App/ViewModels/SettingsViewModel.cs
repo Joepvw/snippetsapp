@@ -51,9 +51,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     public event EventHandler? RemoteUrlChanged;
 
     /// <summary>
-    /// Raised when the user clicks "Nu synchroniseren" — caller must trigger a pull + push.
+    /// Set by the host (App) — invoked when the user clicks "Nu synchroniseren".
+    /// Returns a Task that completes when pull + push are done so the UI can show progress.
     /// </summary>
-    public event EventHandler? SyncNowRequested;
+    public Func<Task>? SyncAction { get; set; }
 
     public SettingsViewModel(SettingsService settings, IGlobalHotkeyService hotkey, SnippetRepository repository, WindowsStartupService startupService)
     {
@@ -214,10 +215,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SyncNow()
+    private async Task SyncNowAsync()
     {
-        SyncNowRequested?.Invoke(this, EventArgs.Empty);
+        if (SyncAction is null)
+        {
+            ShowError("Sync is niet beschikbaar.");
+            return;
+        }
+
         ShowSuccess("Synchronisatie gestart…");
+        try
+        {
+            await SyncAction();
+            ShowSuccess("Synchronisatie voltooid.");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Sync fout: {ex.Message}");
+        }
     }
 
     [RelayCommand]

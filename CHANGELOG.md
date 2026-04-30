@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] — 2026-04-30
+
+### Fixed
+- "Nu synchroniseren"-knop bleef hangen op "Synchronisatie gestart…" — de VM wachtte niet op de async pull+push. De command is nu zelf async en toont na afloop "Synchronisatie voltooid." of een foutmelding.
+
 ## [1.0.3] — 2026-04-30
 
 ### Fixed
@@ -63,7 +68,8 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/Joepvw/snippetsapp/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Joepvw/snippetsapp/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Joepvw/snippetsapp/compare/v1.0.0...v1.0.1

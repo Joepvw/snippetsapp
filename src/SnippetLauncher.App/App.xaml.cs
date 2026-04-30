@@ -130,7 +130,7 @@ public partial class App : Application
         var settingsVm = _services.GetRequiredService<SettingsViewModel>();
         settingsVm.RepoPathChanged += OnRepoPathChanged;
         settingsVm.RemoteUrlChanged += OnRemoteUrlChanged;
-        settingsVm.SyncNowRequested += (_, _) => _ = SyncNowAsync();
+        settingsVm.SyncAction = SyncNowAsync;
         _settingsWindow = new SettingsWindow(settingsVm);
 
         // ── Command bus wiring ───────────────────────────────────────────────
