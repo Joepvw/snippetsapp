@@ -132,3 +132,42 @@ een korte vervolg-brainstorm of expliciete beslissing van Joep. Daarna
 `/workflows:plan` voor een implementatieplan dat Inno Setup-config, GitHub Releases
 API-call, semver-vergelijking, tray-notificatie, release-pipeline-aanpassing én de
 gekozen auth-richting dekt.
+
+## Veld-validatie (toegevoegd 2026-05-21, na v1.1.0 release)
+
+Eerste echte externe gebruiker (Yasmina, collega van Joep) probeerde de v1.1.0
+installer. Bevindingen:
+
+- **Installer + SmartScreen**: download moest via "Toch behouden" in Edge én "Toch
+  uitvoeren" bij eerste run. Lukte na coaching, maar twee-stappen-bypass voor een
+  niet-tech gebruiker is wel een hobbel — bevestigt dat SmartScreen blokkeert op
+  **download**, niet alleen op execution. Onze brainstorm-aanname onderschatte dit.
+- **Git-auth hobbel = harde blocker**, exact zoals voorspeld. Log toonde 265× achter
+  elkaar `LibGit2Sharp: could not find appropriate mechanism for credentials` in 4,5
+  uur. Geen GCM-popup omdat **Git for Windows niet geïnstalleerd** was — LibGit2Sharp
+  komt dan niet eens zo ver dat het *iets* mag proberen.
+- **UI loog**: status in Settings toonde "Synchronisatie voltooid" terwijl elke
+  fetch silently faalde. Aparte regressie/bug — sync-status moet correct "mislukt"
+  tonen bij fetch-failures.
+
+Workaround die Joep nu inzet voor Yasmina: GitHub-account aanmaken, collaborator
+worden, Git for Windows installeren. Werkt wel maar bevestigt dat dit voor een
+échte non-tech gebruiker (zangers, familie) niet houdbaar is.
+
+## Follow-up backlog (voor volgend planronde)
+
+1. **Git for Windows-detectie in de first-run wizard.** Minimaal: bij de
+   Remote-stap, als `git.exe` niet vindbaar is op PATH én er een Remote-URL is
+   ingevuld, toon een waarschuwing met een directe link naar
+   https://git-scm.com/download/win en uitleg waarom dit nodig is. Voorkomt 4 uur
+   silent fail-loops voor de volgende gebruiker. **Klein, snel, doet veel.**
+2. **Sync-status moet niet liegen.** "Synchronisatie voltooid" alleen tonen als de
+   underlying git-operatie écht slaagde; bij credential-failure een duidelijke
+   "Synchronisatie mislukt: geen Git-credentials beschikbaar" + link naar uitleg.
+3. **Structurele auth-flow voor niet-tech publiek** (zoals brainstorm al noemde):
+   Device Flow lijkt nu nog meer voor de hand te liggen omdat het in één klap óók
+   de Git-for-Windows-dependency wegneemt. Apart brainstorm + plan waard wanneer
+   prioriteit het toelaat.
+4. **SmartScreen bypass-coaching** in release notes verwerken, of overstappen op
+   Azure Trusted Signing zodat dit verdwijnt. Eerst Microsoft binary-submission
+   proberen als gratis pleister.
