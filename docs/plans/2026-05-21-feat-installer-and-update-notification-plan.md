@@ -523,7 +523,7 @@ Acceptance:
 - [x] Een bestaande installatie krijgt binnen 24h na een nieuwe release een tray-toast + persistent menu-item (loop + event + wiring werkt; te verifiëren bij eerste live release)
 - [x] Klik op menu-item opent de juiste release-pagina in browser (zelf opgebouwde URL, niet API-verstrekt) — geverifieerd door unit-test op `GitHubUpdateCheckService`
 - [x] Updaten = nieuwe setup.exe over de oude heen draaien; data en settings ongemoeid (`{app}` in `%LOCALAPPDATA%`, data in `%APPDATA%` — separate paden; te verifiëren bij eerste update)
-- [ ] Setup.exe < 50 MB — **te verifiëren na eerste compile met `iscc`**
+- [x] Setup.exe < 50 MB — geverifieerd bij v1.1.0 release: **45 MB**
 - [x] `dotnet test` blijft groen (89 Core + 1 NetArchTest)
 - [x] `dotnet format Snippets.sln --verify-no-changes` blijft groen
 - [x] Release-skill bevat alle drie artefacten + SHA256-blok in release notes (statisch geverifieerd; live geverifieerd bij eerste release)
