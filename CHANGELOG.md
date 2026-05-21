@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-05-21
+
 ### Added
 - **One-click installer** (Inno Setup, per-user) gepubliceerd op GitHub Releases naast de bestaande zip. Geen handmatige zip-uitpak meer, geen "Blokkering opheffen", Start Menu shortcut automatisch, optionele desktop-shortcut. Bestaande zip-installaties worden bij de eerste run van de installer eenmalig herkend en netjes vervangen — snippets en instellingen blijven behouden.
 - **In-app update-notificatie**: Snippet Launcher polt 1× per dag de GitHub Releases API; bij een nieuwe versie verschijnt er een tray-toast plus een permanent menu-item dat de download-pagina opent. Uit te zetten via Instellingen → Systeem → Updates. De URL die in de browser wordt geopend is zelf opgebouwd vanuit de geparste versie (defense-in-depth: de upstream API kan geen kwaadaardige URL injecteren).
+- `SHA256SUMS.txt` als 3e release-asset zodat gebruikers de download-integriteit kunnen verifiëren in afwezigheid van code-signing.
 
 ### Changed
 - README en `docs/setup-second-user.md` herschreven rond de installer-flow als primair download-pad.
+- Release-skill compileert nu automatisch de Inno Setup installer en genereert SHA256-checksums; release notes bevatten het checksum-blok.
 
 ## [1.0.4] — 2026-04-30
 
@@ -75,7 +79,8 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Joepvw/snippetsapp/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/Joepvw/snippetsapp/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Joepvw/snippetsapp/compare/v1.0.1...v1.0.2
