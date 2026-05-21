@@ -148,6 +148,14 @@
                     <TextBlock Margin="0,6,0,0" Foreground="#888" FontSize="11" TextWrapping="Wrap">
                         Snippet Launcher start automatisch zodra je inlogt op Windows en blijft in het systeemvak draaien.
                     </TextBlock>
+
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="Updates"/>
+                    <CheckBox Content="Automatisch controleren op updates (1× per dag)"
+                              IsChecked="{Binding UpdateCheckEnabled}"
+                              Margin="0,8,0,0"/>
+                    <TextBlock Margin="0,6,0,0" Foreground="#888" FontSize="11" TextWrapping="Wrap">
+                        Bij een nieuwe versie verschijnt een melding in het systeemvak. Klik op het tray-menu om de download-pagina te openen.
+                    </TextBlock>
                 </StackPanel>
             </TabItem>
 

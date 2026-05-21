@@ -1,9 +1,12 @@
+using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Net.Http;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using H.NotifyIcon;
+using H.NotifyIcon.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using SnippetLauncher.App.Services;
@@ -17,6 +20,7 @@ using SnippetLauncher.Core.Search;
 using SnippetLauncher.Core.Settings;
 using SnippetLauncher.Core.Storage;
 using SnippetLauncher.Core.Sync;
+using SnippetLauncher.Core.Updates;
 
 namespace SnippetLauncher.App;
 
@@ -25,11 +29,17 @@ public partial class App : Application
     private const string MutexName = "SnippetLauncher_SingleInstance_Mutex";
     private const string PipeName = "SnippetLauncher_IPC";
 
-    private static readonly string AppVersion =
-        "v" + (Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)
-            ?? "?");
+    private static readonly Version CurrentVersion = ParseCurrentVersion();
+    private static readonly string AppVersion = "v" + CurrentVersion.ToString(3);
+
+    private static Version ParseCurrentVersion()
+    {
+        var asm = Assembly.GetExecutingAssembly();
+        var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (info is not null && Version.TryParse(info, out var parsed))
+            return parsed;
+        return asm.GetName().Version ?? new Version(0, 0, 0);
+    }
 
     private static readonly string AppDataDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -40,11 +50,14 @@ public partial class App : Application
     private ServiceProvider? _services;
     private TaskbarIcon? _trayIcon;
     private MenuItem? _trayRetryItem;
+    private MenuItem? _trayUpdateItem;
     private SearchPopupWindow? _popup;
     private EditorWindow? _editor;
     private SettingsWindow? _settingsWindow;
     private GitService? _gitService;
     private SnippetRepository? _activeRepository;
+    private UpdateNotificationService? _updateNotifier;
+    private UpdateCheckResult? _pendingUpdate;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -174,7 +187,52 @@ public partial class App : Application
         // ── IPC server ───────────────────────────────────────────────────────
         _ = StartIpcServerAsync();
 
+        // ── Update notifier ──────────────────────────────────────────────────
+        _updateNotifier = _services.GetRequiredService<UpdateNotificationService>();
+        _updateNotifier.UpdateAvailable += result =>
+            Dispatcher.BeginInvoke(() => ShowUpdateAvailable(result));
+        _updateNotifier.Start();
+
         Log.Information("Snippet Launcher started — snippets dir: {Dir}", settingsSvc.Current.SnippetsDirectory);
+    }
+
+    private void ShowUpdateAvailable(UpdateCheckResult result)
+    {
+        if (result.NewVersion is null || result.ReleaseUrl is null) return;
+
+        _pendingUpdate = result;
+
+        if (_trayUpdateItem is not null)
+        {
+            _trayUpdateItem.Header = $"🆕 Update v{result.NewVersion.ToString(3)} beschikbaar";
+            _trayUpdateItem.Visibility = Visibility.Visible;
+        }
+
+        try
+        {
+            _trayIcon?.ShowNotification(
+                title: "Update beschikbaar",
+                message: $"Snippet Launcher v{result.NewVersion.ToString(3)} is uit.",
+                icon: NotificationIcon.Info);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not show update toast notification");
+        }
+    }
+
+    private void OpenPendingUpdate()
+    {
+        var url = _pendingUpdate?.ReleaseUrl;
+        if (string.IsNullOrEmpty(url)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not open release URL {Url}", url);
+        }
     }
 
     private void ConfigureServices(IServiceCollection services, SettingsService settingsSvc)
@@ -219,6 +277,22 @@ public partial class App : Application
             sp.GetRequiredService<IGlobalHotkeyService>(),
             sp.GetRequiredService<SnippetRepository>(),
             sp.GetRequiredService<WindowsStartupService>()));
+
+        // ── Update checker ────────────────────────────────────────────────────
+        services.AddSingleton(_ => new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+            MaxAutomaticRedirections = 3,
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(10),
+        });
+        services.AddSingleton<IUpdateCheckService>(sp =>
+            new GitHubUpdateCheckService(sp.GetRequiredService<HttpClient>()));
+        services.AddSingleton(sp => new UpdateNotificationService(
+            sp.GetRequiredService<IUpdateCheckService>(),
+            sp.GetRequiredService<SettingsService>(),
+            CurrentVersion));
     }
 
     private GitService BuildGitService(SettingsService settingsSvc, SnippetRepository snippetRepo)
@@ -314,6 +388,15 @@ public partial class App : Application
         icon.ForceCreate();
 
         var menu = new ContextMenu();
+
+        _trayUpdateItem = new MenuItem
+        {
+            Header = "🆕 Update beschikbaar",
+            Visibility = Visibility.Collapsed,
+            FontWeight = FontWeights.SemiBold,
+        };
+        _trayUpdateItem.Click += (_, _) => OpenPendingUpdate();
+        menu.Items.Add(_trayUpdateItem);
 
         var searchItem = new MenuItem { Header = "Zoeken (Ctrl+Shift+Space)" };
         searchItem.Click += (_, _) => _popup?.ShowAndActivate();
@@ -411,6 +494,13 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Information("Snippet Launcher exiting");
+        // Drain the update notifier first so an in-flight HTTP call is cancelled
+        // before we tear down its dependencies.
+        if (_updateNotifier is not null)
+        {
+            try { _updateNotifier.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            catch (Exception ex) { Log.Warning(ex, "Update notifier dispose failed"); }
+        }
         _services?.GetService<IGlobalHotkeyService>()?.Dispose();
         _services?.GetService<SnippetRepository>()?.Dispose();
         _gitService?.Dispose();

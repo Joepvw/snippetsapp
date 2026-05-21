@@ -10,4 +10,5 @@ public sealed class AppSettings
     public string Theme { get; set; } = "System"; // Light, Dark, System
     public bool IsFirstRun { get; set; } = true;
     public bool StartAtLoginEnabled { get; set; } = false;
+    public bool UpdateCheckEnabled { get; set; } = true;
 }

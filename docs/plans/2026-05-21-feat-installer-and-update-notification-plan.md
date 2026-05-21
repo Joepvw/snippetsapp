@@ -436,15 +436,17 @@ Tests:
 - Wel: 1 smoke-test voor `UpdateNotificationService` dat event fires bij `NewVersion != null` en niet bij `UpdateCheckEnabled = false`
 
 Acceptance:
-- [ ] Auto-check werkt 30s na MainWindow.Show, daarna elke 24h
-- [ ] Respecteert `UpdateCheckEnabled`
-- [ ] Toast verschijnt bij nieuwe versie
-- [ ] Menu-item "🆕 Update vX.Y.Z beschikbaar" verschijnt en blijft staan tot herstart of nieuwere versie
-- [ ] Klik op menu-item opent juiste release-pagina in browser
-- [ ] `Process.Start` krijgt nooit een externe URL — alleen zelf opgebouwde `github.com/Joepvw/snippetsapp/releases/tag/...`
-- [ ] Settings-checkbox werkt, persisteert in `settings.json`
-- [ ] Shutdown annuleert in-flight HTTP-call netjes via `CancellationToken`
-- [ ] `UpdateNotificationService` is `IAsyncDisposable`, wordt gedispose'd in `OnExit`
+- [x] Auto-check werkt 30s na startup, daarna elke 24h (initial-delay + interval injectable voor tests)
+- [x] Respecteert `UpdateCheckEnabled`
+- [x] Toast verschijnt bij nieuwe versie via `H.NotifyIcon.ShowNotification`
+- [x] Menu-item "🆕 Update vX.Y.Z beschikbaar" verschijnt en blijft staan tot herstart of nieuwere versie
+- [x] Klik op menu-item opent juiste release-pagina in browser
+- [x] `Process.Start` krijgt nooit een externe URL — alleen zelf opgebouwde `github.com/Joepvw/snippetsapp/releases/tag/...` (uit Phase 3)
+- [x] Settings-checkbox werkt, persisteert in `settings.json`
+- [x] Shutdown annuleert in-flight HTTP-call netjes via `CancellationToken`
+- [x] `UpdateNotificationService` is `IAsyncDisposable`, wordt gedispose'd in `OnExit`
+
+**Plan-deviation**: `UpdateNotificationService` zit uiteindelijk in `SnippetLauncher.Core.Updates`, niet in `SnippetLauncher.App.Services`. Reden: de service heeft geen WPF-deps (timer + event-raise + settings-read), en in Core kan het een echte unit-test krijgen — App.Tests is per CLAUDE.md alleen NetArchTest. App.xaml.cs subscribet op het event en doet alle UI-werk (Dispatcher-marshal, toast, menu-item visibility).
 
 ## Edge cases & user flows
 

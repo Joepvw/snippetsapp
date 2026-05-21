@@ -16,6 +16,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly SnippetRepository _repository;
     private readonly WindowsStartupService _startupService;
     private bool _suppressStartAtLoginHandler;
+    private bool _suppressUpdateCheckHandler;
 
     [ObservableProperty] private string _repoPath = "";
     [ObservableProperty] private string _remoteUrl = "";
@@ -24,6 +25,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _pullIntervalSeconds = 60;
     [ObservableProperty] private string _selectedTheme = "System";
     [ObservableProperty] private bool _startAtLoginEnabled;
+    [ObservableProperty] private bool _updateCheckEnabled = true;
     [ObservableProperty] private string _statusMessage = "";
     [ObservableProperty] private bool _hasError;
 
@@ -77,6 +79,20 @@ public sealed partial class SettingsViewModel : ObservableObject
         _suppressStartAtLoginHandler = true;
         StartAtLoginEnabled = _settings.Current.StartAtLoginEnabled;
         _suppressStartAtLoginHandler = false;
+
+        _suppressUpdateCheckHandler = true;
+        UpdateCheckEnabled = _settings.Current.UpdateCheckEnabled;
+        _suppressUpdateCheckHandler = false;
+    }
+
+    partial void OnUpdateCheckEnabledChanged(bool value)
+    {
+        if (_suppressUpdateCheckHandler) return;
+        _settings.Current.UpdateCheckEnabled = value;
+        _settings.Save();
+        ShowSuccess(value
+            ? "Automatisch controleren op updates ingeschakeld."
+            : "Automatisch controleren op updates uitgeschakeld.");
     }
 
     partial void OnStartAtLoginEnabledChanged(bool value)
