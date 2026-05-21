@@ -57,22 +57,40 @@ Run these in order. Replace `vX.Y.Z` with the agreed version.
    Compress-Archive -Path publish\SnippetLauncher-win-x64 \
      -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
    ```
+7b. **Build Inno Setup installer** (PowerShell — Inno Setup 6 must be installed):
+   ```
+   & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+     "/DAppVersion=X.Y.Z" "installer\SnippetLauncher.iss"
+   ```
+   Produces `publish/SnippetLauncher-Setup-vX.Y.Z.exe`. If `iscc.exe` is missing, stop — non-tech users only see the installer.
+7c. **Generate SHA256 checksums** for both assets:
+   ```
+   Get-FileHash publish\SnippetLauncher-vX.Y.Z-win-x64.zip,publish\SnippetLauncher-Setup-vX.Y.Z.exe -Algorithm SHA256 |
+     ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
+     Set-Content -Encoding ascii publish\SHA256SUMS.txt
+   ```
 8. **Push** the commit and tag to GitHub:
    ```
    git push origin master
    git push origin vX.Y.Z
    ```
-9. **Create GitHub Release** with the zip attached. Use the new changelog section as release notes (extract the `## [X.Y.Z]` block from `CHANGELOG.md`):
+9. **Create GitHub Release** with all three assets attached. Use the new changelog section as release notes, append the SHA256 block:
    ```
-   gh release create vX.Y.Z publish/SnippetLauncher-vX.Y.Z-win-x64.zip \
-     --title "vX.Y.Z - <one-line summary>" \
-     --notes "<paste the [X.Y.Z] section content from CHANGELOG.md>"
+   $Sha = Get-Content publish\SHA256SUMS.txt -Raw
+   gh release create vX.Y.Z `
+     publish\SnippetLauncher-vX.Y.Z-win-x64.zip `
+     publish\SnippetLauncher-Setup-vX.Y.Z.exe `
+     publish\SHA256SUMS.txt `
+     --title "vX.Y.Z - <one-line summary>" `
+     --notes "<changelog block>`n`n## SHA256 checksums`n``````n$Sha```````"
    ```
 
 ### Naming conventions
 
 - Tag format: `v1.0.0` (lowercase `v` prefix)
 - Zip filename: `SnippetLauncher-v<version>-win-x64.zip` in `publish/`
+- Installer filename: `SnippetLauncher-Setup-v<version>.exe` in `publish/`
+- Checksum filename: `SHA256SUMS.txt` in `publish/`
 - Commit subjects: imperative, prefixed (`feat:`, `fix:`, …)
 
 ## Build / Test

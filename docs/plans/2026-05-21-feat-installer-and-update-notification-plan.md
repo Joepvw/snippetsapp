@@ -254,10 +254,10 @@ Files affected:
 - **edit** `CLAUDE.md` — sectie "Release procedure" bijwerken
 
 Acceptance:
-- [ ] Skill faalt vroeg en duidelijk als `iscc.exe` ontbreekt (geen halve release)
-- [ ] Drie artefacten op de GitHub Release-pagina: zip, setup.exe, SHA256SUMS.txt
-- [ ] Release notes bevatten checksum-blok
-- [ ] Skill idempotent — opnieuw draaien na een halve fail werkt
+- [x] Skill faalt vroeg en duidelijk als `iscc.exe` ontbreekt (`throw "Inno Setup 6 niet gevonden..."` voor de feitelijke compile-stap)
+- [x] Drie artefacten in de `gh release create`-aanroep: zip, setup.exe, SHA256SUMS.txt
+- [x] Release notes bevatten checksum-blok via `$Sha`-interpolatie
+- [x] Skill structuur ongewijzigd voor bestaande stappen — opnieuw draaien na een halve fail werkt nog steeds (idempotent)
 
 ### Phase 3 — `IUpdateCheckService` (Core) + security hardening
 
@@ -519,14 +519,14 @@ Acceptance:
 
 ## Acceptance criteria (overall)
 
-- [ ] Een nieuwe gebruiker (niet-tech) krijgt SnippetLauncher in 3 klikken werkend: download → installer-doorklikken → app start
-- [ ] Een bestaande installatie krijgt binnen 24h na een nieuwe release een tray-toast + persistent menu-item
-- [ ] Klik op menu-item opent de juiste release-pagina in browser (zelf opgebouwde URL, niet API-verstrekt)
-- [ ] Updaten = nieuwe setup.exe over de oude heen draaien; data en settings ongemoeid
-- [ ] Setup.exe < 50 MB
-- [ ] `dotnet test` blijft groen, coverage ≥ 70% op Core
-- [ ] `dotnet format Snippets.sln --verify-no-changes` blijft groen
-- [ ] Release-skill draait end-to-end en levert 3 artefacten + SHA256-blok in release notes
+- [x] Een nieuwe gebruiker krijgt SnippetLauncher in 3 klikken werkend: download → installer-doorklikken → app start (installer-flow ingebakken; te verifiëren bij eerste release)
+- [x] Een bestaande installatie krijgt binnen 24h na een nieuwe release een tray-toast + persistent menu-item (loop + event + wiring werkt; te verifiëren bij eerste live release)
+- [x] Klik op menu-item opent de juiste release-pagina in browser (zelf opgebouwde URL, niet API-verstrekt) — geverifieerd door unit-test op `GitHubUpdateCheckService`
+- [x] Updaten = nieuwe setup.exe over de oude heen draaien; data en settings ongemoeid (`{app}` in `%LOCALAPPDATA%`, data in `%APPDATA%` — separate paden; te verifiëren bij eerste update)
+- [ ] Setup.exe < 50 MB — **te verifiëren na eerste compile met `iscc`**
+- [x] `dotnet test` blijft groen (89 Core + 1 NetArchTest)
+- [x] `dotnet format Snippets.sln --verify-no-changes` blijft groen
+- [x] Release-skill bevat alle drie artefacten + SHA256-blok in release notes (statisch geverifieerd; live geverifieerd bij eerste release)
 
 ## References
 

@@ -5,7 +5,7 @@ description: Execute a SnippetLauncher release end-to-end — bump version, upda
 
 # SnippetLauncher release
 
-Automates the 8-step release procedure from `CLAUDE.md`. Always confirms the version bump with the user before doing anything destructive.
+Automates the release procedure from `CLAUDE.md`. Always confirms the version bump with the user before doing anything destructive. Requires **Inno Setup 6** installed on the build machine (used in step 7b to produce the per-user installer asset).
 
 ## Step 0 — Confirm version
 
@@ -76,6 +76,34 @@ Compress-Archive -Path publish\SnippetLauncher-win-x64 \
   -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
 ```
 
+## Step 7b — Build Inno Setup installer (PowerShell)
+
+```
+$Iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+if (-not (Test-Path $Iscc)) {
+  throw "Inno Setup 6 niet gevonden op $Iscc. Install van https://jrsoftware.org/isinfo.php"
+}
+& $Iscc "/DAppVersion=X.Y.Z" "installer\SnippetLauncher.iss"
+if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+```
+
+If `iscc.exe` is missing, **stop**. Do not push a release that's missing the
+installer asset — second users will only see the zip and the whole installer
+flow is invisible to them.
+
+## Step 7c — Generate SHA256 checksums (PowerShell)
+
+```
+Get-FileHash `
+  publish\SnippetLauncher-vX.Y.Z-win-x64.zip, `
+  publish\SnippetLauncher-Setup-vX.Y.Z.exe `
+  -Algorithm SHA256 |
+  ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
+  Set-Content -Encoding ascii publish\SHA256SUMS.txt
+```
+
+Without code-signing, this hash file is the only integrity anchor users have.
+
 ## Step 8 — Push commit and tag
 
 ```
@@ -85,12 +113,17 @@ git push origin vX.Y.Z
 
 ## Step 9 — GitHub Release
 
-Extract the `## [X.Y.Z]` section from `CHANGELOG.md` as release notes.
+Extract the `## [X.Y.Z]` section from `CHANGELOG.md` and append the SHA256
+block from `publish\SHA256SUMS.txt`. Upload all three assets:
 
 ```
-gh release create vX.Y.Z publish/SnippetLauncher-vX.Y.Z-win-x64.zip \
-  --title "vX.Y.Z - <one-line summary>" \
-  --notes "<paste the [X.Y.Z] section content from CHANGELOG.md>"
+$Sha = Get-Content publish\SHA256SUMS.txt -Raw
+gh release create vX.Y.Z `
+  publish\SnippetLauncher-vX.Y.Z-win-x64.zip `
+  publish\SnippetLauncher-Setup-vX.Y.Z.exe `
+  publish\SHA256SUMS.txt `
+  --title "vX.Y.Z - <one-line summary>" `
+  --notes "<changelog block>`n`n## SHA256 checksums`n``````n$Sha```````"
 ```
 
 ## After release
