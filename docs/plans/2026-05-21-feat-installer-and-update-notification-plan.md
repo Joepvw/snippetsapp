@@ -334,13 +334,13 @@ Tests **flat** in `tests/SnippetLauncher.Core.Tests/` (matcht bestaande conventi
 Coverage target: 100% op deze module.
 
 Acceptance:
-- [ ] Service testbaar zonder netwerk via injected `HttpMessageHandler`
-- [ ] Alle 8 response-scenario's + 6 malicious-URL scenario's gedekt
-- [ ] `ReleaseUrl` wordt altijd zelf opgebouwd uit gevalideerde tag — `html_url` uit API wordt nooit doorgegeven aan `Process.Start`
-- [ ] Response-stream is begrensd op 1 MB
-- [ ] Alle `await`s in Core gebruiken `ConfigureAwait(false)`
-- [ ] `CancellationToken` doorgegeven tot in `HttpClient.SendAsync` en `JsonSerializer.DeserializeAsync`
-- [ ] Geen WPF-deps (NetArchTest in App.Tests blijft groen)
+- [x] Service testbaar zonder netwerk via injected `HttpMessageHandler`
+- [x] Alle 8 response-scenario's + 6 malicious-URL scenario's gedekt (17 tests groen)
+- [x] `ReleaseUrl` wordt altijd zelf opgebouwd uit gevalideerde tag — `html_url` uit API wordt nooit doorgegeven aan `Process.Start`
+- [x] Response-stream is begrensd op 1 MB
+- [x] Alle `await`s in Core gebruiken `ConfigureAwait(false)`
+- [x] `CancellationToken` doorgegeven tot in `HttpClient.SendAsync` en `JsonSerializer.DeserializeAsync`
+- [x] Geen WPF-deps (NetArchTest in App.Tests blijft groen)
 
 ### Phase 4 — `UpdateNotificationService` + tray-toast + Settings checkbox
 
