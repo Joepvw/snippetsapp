@@ -203,13 +203,14 @@ Verificatie:
 - Tweede installer-run (echte update-scenario): geen prompt meer, installeert silent over vorige Inno-install
 
 Acceptance:
-- [ ] `.iss` compileert zonder warnings
-- [ ] Per-user install (geen UAC-prompt) in `%LOCALAPPDATA%\Programs\SnippetLauncher\`
-- [ ] Optie voor per-machine via `PrivilegesRequiredOverridesAllowed=dialog`
-- [ ] Setup.exe < 50 MB (lzma2/ultra64 + solid)
-- [ ] Uninstaller in Apps & Features (user-scope), verwijdert alleen `{app}`
-- [ ] Zip→installer migratie-prompt verschijnt eenmalig, niet bij echte updates
-- [ ] AppId GUID staat in source control met comment "DO NOT CHANGE"
+- [x] `.iss` geschreven met alle vereiste directives, language-files (NL + EN), `[Tasks]` voor desktop-icon, `[Run]` voor "start app", en `[Code]` `InitializeSetup` voor de eenmalige zip→installer-prompt
+- [x] Per-user install geconfigureerd (`PrivilegesRequired=lowest`, `DefaultDirName={localappdata}\Programs\SnippetLauncher`)
+- [x] Optie voor per-machine via `PrivilegesRequiredOverridesAllowed=dialog`
+- [x] AppId GUID `808412CC-4EDA-45DB-8871-550B58BA589C` met "DO NOT CHANGE"-comment in source control
+- [ ] `.iss` compileert zonder warnings — **te verifiëren door Joep na Inno Setup install** (niet aanwezig op build-machine tijdens implementatie)
+- [ ] Setup.exe < 50 MB (lzma2/ultra64 + solid) — **te verifiëren bij eerste release-build**
+- [ ] Uninstaller in Apps & Features (user-scope), verwijdert alleen `{app}` — **te verifiëren bij eerste installer-run**
+- [ ] Zip→installer migratie-prompt verschijnt eenmalig, niet bij echte updates — **te verifiëren bij eerste installer-run**
 
 ### Phase 2 — Release pipeline + SHA256 checksums
 

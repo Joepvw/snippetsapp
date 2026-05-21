@@ -19,14 +19,22 @@ Lokale Windows-applicatie (WPF / .NET 10) die via een globale hotkey een fuzzy-s
 
 ## Installatie
 
-1. Download `SnippetLauncher-v1.0.0-win-x64.zip` uit [Releases](../../releases).
-2. Pak de zip uit naar `%LOCALAPPDATA%\Programs\SnippetLauncher\`
-   (typ dat pad in de adresbalk van Verkenner — Windows maakt de mappen automatisch aan).
-3. **SmartScreen-waarschuwing omzeilen** (ongesigneerde binary):
-   - Klik met de rechtermuisknop op `SnippetLauncher.App.exe` → **Eigenschappen**.
-   - Vink onderaan **Blokkering opheffen** aan en klik **OK**.
-4. Dubbelklik `SnippetLauncher.App.exe`. Bij eerste start verschijnt de **First-run wizard** — volg de stappen om een snippet-map te kiezen en eventueel een Git-remote te koppelen.
-5. Maak optioneel een snelkoppeling op je bureaublad of in het Start Menu.
+1. Download `SnippetLauncher-Setup-vX.Y.Z.exe` uit [Releases](../../releases).
+2. Dubbelklik het bestand. Bij de SmartScreen-waarschuwing: klik op
+   **Meer informatie** → **Toch uitvoeren** (de binary is niet code-signed).
+3. Doorloop de installer (3 schermen, geen admin-rechten nodig — installeert
+   per-user in `%LOCALAPPDATA%\Programs\SnippetLauncher\`).
+4. Bij eerste start verschijnt de **First-run wizard** — volg de stappen om een
+   snippet-map te kiezen en eventueel een Git-remote te koppelen.
+
+> Snippet Launcher checkt 1× per dag automatisch op nieuwe releases en toont
+> een melding in het systeemvak. Klik op het tray-menu om de download-pagina
+> te openen. Uit te zetten via Instellingen → Systeem → Updates.
+
+> Voor power-users blijft de losse `SnippetLauncher-vX.Y.Z-win-x64.zip` als
+> alternatief op de Releases-pagina staan — uitpakken, blokkering opheffen,
+> klaar. Tijdens een release wordt ook een `SHA256SUMS.txt` gepubliceerd zodat
+> je de download-integriteit kunt verifiëren.
 
 ## Gebruik
 

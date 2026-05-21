@@ -14,17 +14,26 @@ om met een collega of tussen je eigen machines dezelfde bibliotheek te delen.
   — vereist voor synchronisatie en Git Credential Manager
 - Toegang tot de gedeelde repo (collaborator-rechten als hij privé is)
 
-## Stap 1 — Snippet Launcher downloaden
+## Stap 1 — Snippet Launcher installeren
 
-1. Download de nieuwste `.zip` van de Releases-pagina:
-   **https://github.com/Joepvw/snippetsapp/releases/latest**
-2. Pak de zip uit naar `%LOCALAPPDATA%\Programs\SnippetLauncher\`
-   (typ dat pad in de adresbalk van Verkenner — Windows maakt de mappen automatisch aan).
-   Dit is de standaardlocatie voor user-scoped apps; geen admin-rechten nodig en updates kun je later eenvoudig over deze map heen uitpakken.
-3. Klik met **rechts** op `SnippetLauncher.App.exe` → **Eigenschappen** →
-   onderin bij "Beveiliging" → vink **Blokkering opheffen** aan → OK.
-   _(Windows SmartScreen blokkeert anders het starten van ongesigneerde apps.)_
-4. Maak optioneel een snelkoppeling naar `SnippetLauncher.App.exe` op je bureaublad of in het Start Menu.
+1. Ga naar de Releases-pagina: **https://github.com/Joepvw/snippetsapp/releases/latest**
+2. Download `SnippetLauncher-Setup-vX.Y.Z.exe` (één bestand — geen zip uitpakken).
+3. Dubbelklik het bestand. Windows SmartScreen waarschuwt dat de app niet ondertekend is:
+   klik op **Meer informatie** → **Toch uitvoeren**.
+4. Klik door de installer (3 schermen). Standaard wordt Snippet Launcher per gebruiker
+   geïnstalleerd in `%LOCALAPPDATA%\Programs\SnippetLauncher\` zonder admin-rechten.
+   Vink eventueel "Snelkoppeling op bureaublad maken" aan. Aan het einde kun je
+   "Snippet Launcher starten" aanlaten.
+
+> **Updates** verlopen later vanzelf: zodra er een nieuwe versie is, verschijnt er
+> een melding in het systeemvak met een link naar de nieuwe download. Draai die
+> opnieuw en je hebt de update.
+
+> **Bestaande zip-installatie?** De installer ziet die en vraagt eenmalig om
+> bevestiging. Je snippets en instellingen blijven behouden — alleen de programma-bestanden worden vervangen.
+
+> **Liever de oude zip-route?** Ook de `.zip` met de losse bestanden blijft als
+> alternatief op de Release-pagina staan voor power-users die geen installer willen.
 
 ## Stap 2 — Repository-URL ophalen
 

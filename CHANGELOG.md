@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **One-click installer** (Inno Setup, per-user) gepubliceerd op GitHub Releases naast de bestaande zip. Geen handmatige zip-uitpak meer, geen "Blokkering opheffen", Start Menu shortcut automatisch, optionele desktop-shortcut. Bestaande zip-installaties worden bij de eerste run van de installer eenmalig herkend en netjes vervangen — snippets en instellingen blijven behouden.
+- **In-app update-notificatie**: Snippet Launcher polt 1× per dag de GitHub Releases API; bij een nieuwe versie verschijnt er een tray-toast plus een permanent menu-item dat de download-pagina opent. Uit te zetten via Instellingen → Systeem → Updates. De URL die in de browser wordt geopend is zelf opgebouwd vanuit de geparste versie (defense-in-depth: de upstream API kan geen kwaadaardige URL injecteren).
+
+### Changed
+- README en `docs/setup-second-user.md` herschreven rond de installer-flow als primair download-pad.
+
 ## [1.0.4] — 2026-04-30
 
 ### Fixed
