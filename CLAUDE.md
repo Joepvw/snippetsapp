@@ -1,16 +1,6 @@
 # SnippetLauncher — Project Notes for Claude
 
-## Reading order for a fresh session
-
-When you start working on this repo without prior context, read in this order — the whole stack is ~10 minutes:
-
-1. **This file (CLAUDE.md)** — conventions, invariants, release procedure.
-2. **[docs/architecture.md](docs/architecture.md)** — top-level system map. How Core, App, Sync, Storage, Search fit together.
-3. **[docs/solutions/](docs/solutions/)** — institutional memory. Read when touching threading, hotkeys, or sync.
-4. **[docs/runbooks/](docs/runbooks/)** — only when something is broken at runtime.
-5. **[docs/plans/](docs/plans/)** — only when implementing or extending a planned feature.
-
-Don't reverse-engineer architecture from code if `docs/architecture.md` answers the question.
+> Git en worktrees: [../context/git-werkwijze.md](../context/git-werkwijze.md).
 
 ## Releases & Versioning
 
@@ -28,62 +18,11 @@ Do **not** auto-pick a version. Always ask first:
 
 Get the latest tag with `git tag --list --sort=-v:refname | head -1`.
 
-### Release procedure (after user confirms version bump)
+### Release procedure
 
-The `release` skill (`.claude/skills/release/SKILL.md`) automates this — invoke it instead of running steps by hand. The steps below remain authoritative for reference.
+Draai de `release`-skill (`.claude/skills/release/SKILL.md`) — die kent de volledige keten: versie bumpen in `Directory.Build.props`, CHANGELOG, commit, tag, self-contained publish, zip, Inno Setup-installer, SHA256SUMS, push en GitHub Release met drie assets.
 
-Run these in order. Replace `vX.Y.Z` with the agreed version.
-
-1. **Verify clean state** — `git status` should be clean, or stage only intentional changes.
-2. **Bump version** in `Directory.Build.props` (`<Version>`, `<AssemblyVersion>`, `<FileVersion>`, `<InformationalVersion>`) to `X.Y.Z` / `X.Y.Z.0`.
-3. **Update `CHANGELOG.md`**:
-   - Move everything under `## [Unreleased]` into a new `## [X.Y.Z] — YYYY-MM-DD` section.
-   - Leave `## [Unreleased]` empty (or with subsection headers) at the top for next iteration.
-   - Update the comparison links at the bottom: change `[Unreleased]` to compare from the new tag, and add a `[X.Y.Z]` link.
-4. **Commit** any pending work with a conventional message (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`). Include the version bump and changelog update in this commit.
-5. **Tag** the commit:
-   ```
-   git tag -a vX.Y.Z -m "vX.Y.Z - <one-line summary>"
-   ```
-6. **Build the publish artifact** (self-contained, no .NET runtime needed on target machine):
-   ```
-   rm -rf publish/SnippetLauncher-win-x64
-   dotnet publish src/SnippetLauncher.App/SnippetLauncher.App.csproj \
-     -c Release -r win-x64 --self-contained true \
-     -o publish/SnippetLauncher-win-x64
-   ```
-7. **Zip** via PowerShell (matches existing naming):
-   ```
-   Compress-Archive -Path publish\SnippetLauncher-win-x64 \
-     -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
-   ```
-7b. **Build Inno Setup installer** (PowerShell — Inno Setup 6 must be installed):
-   ```
-   & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
-     "/DAppVersion=X.Y.Z" "installer\SnippetLauncher.iss"
-   ```
-   Produces `publish/SnippetLauncher-Setup-vX.Y.Z.exe`. If `iscc.exe` is missing, stop — non-tech users only see the installer.
-7c. **Generate SHA256 checksums** for both assets:
-   ```
-   Get-FileHash publish\SnippetLauncher-vX.Y.Z-win-x64.zip,publish\SnippetLauncher-Setup-vX.Y.Z.exe -Algorithm SHA256 |
-     ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
-     Set-Content -Encoding ascii publish\SHA256SUMS.txt
-   ```
-8. **Push** the commit and tag to GitHub:
-   ```
-   git push origin master
-   git push origin vX.Y.Z
-   ```
-9. **Create GitHub Release** with all three assets attached. Use the new changelog section as release notes, append the SHA256 block:
-   ```
-   $Sha = Get-Content publish\SHA256SUMS.txt -Raw
-   gh release create vX.Y.Z `
-     publish\SnippetLauncher-vX.Y.Z-win-x64.zip `
-     publish\SnippetLauncher-Setup-vX.Y.Z.exe `
-     publish\SHA256SUMS.txt `
-     --title "vX.Y.Z - <one-line summary>" `
-     --notes "<changelog block>`n`n## SHA256 checksums`n``````n$Sha```````"
-   ```
+Twee dingen die misgaan als je het met de hand doet: ontbreekt `iscc.exe`, stop dan — niet-technische gebruikers zien alleen de installer. En de release krijgt drie assets (zip, installer, checksums), niet één.
 
 ### Naming conventions
 
@@ -111,7 +50,7 @@ Run these in order. Replace `vX.Y.Z` with the agreed version.
 - `tests/SnippetLauncher.App.Tests/` — NetArchTest boundary tests
 - `snippets/` — **user content, gitignored** (each user has their own)
 - `publish/` — **build output, gitignored** (release zips live here locally)
-- `docs/architecture.md` — top-level system overview (read this first after CLAUDE.md)
+- `docs/architecture.md` — hoe Core, App, Sync, Storage en Search samenhangen. Reverse-engineer de architectuur niet uit de code als dit bestand de vraag beantwoordt.
 - `docs/plans/` — design plans, one per feature (see `docs/plans/README.md`)
 - `docs/solutions/` — institutional memory: solved problems with YAML frontmatter, searchable by tag
 - `docs/runbooks/` — operational fix-it procedures for runtime failures (sync stuck, hotkey broken, snippet recovery)
