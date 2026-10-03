@@ -96,6 +96,12 @@
                         Authenticatie verloopt via Git Credential Manager (ingebouwd in Git for Windows).
                         Klik op "Volgende" om dit stap over te slaan.
                     </TextBlock>
+                    <TextBlock Margin="0,10,0,0" Foreground="#C62828" TextWrapping="Wrap"
+                               Visibility="{Binding NeedsGitInstallation, Converter={StaticResource BoolToVis}}">
+                        Git for Windows ontbreekt. Installeer dit om je met Git Credential Manager bij GitHub aan te melden.
+                        <LineBreak/>
+                        <Hyperlink Command="{Binding OpenGitDownloadCommand}">Git for Windows downloaden</Hyperlink>
+                    </TextBlock>
                 </StackPanel>
 
                 <!-- Step 4: Hotkeys -->

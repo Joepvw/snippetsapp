@@ -83,6 +83,9 @@
                         <TextBlock Margin="0,4,0,0" Foreground="#888" FontSize="11" TextWrapping="Wrap">
                             Forceer een directe pull en push. Handig na het instellen van de remote-URL.
                         </TextBlock>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink Command="{Binding OpenSyncHelpCommand}">Hulp bij synchronisatie en Git-aanmelding</Hyperlink>
+                        </TextBlock>
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="Sync-interval"/>
                         <StackPanel Orientation="Horizontal">

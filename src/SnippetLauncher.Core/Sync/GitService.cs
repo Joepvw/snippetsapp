@@ -177,6 +177,7 @@ public sealed class GitService : IGitService
                     Status = GitSyncStatus.Error;
                     Repository.Init(_repoPath);
                     EnsureOriginConfigured();
+                    throw;
                 }
             }
             else
@@ -223,16 +224,17 @@ public sealed class GitService : IGitService
         catch (Exception ex)
         {
             Log.Warning(ex, "GitService: failed to ensure origin remote");
+            throw;
         }
     }
 
-    private bool BootstrapFromRemote(Repository repo)
+    private void BootstrapFromRemote(Repository repo)
     {
         // Local repo has no commits yet — fetch from origin and check out the default branch.
         try
         {
             var origin = repo.Network.Remotes["origin"];
-            if (origin is null) return false;
+            if (origin is null) return;
 
             var fetchSpecs = origin.FetchRefSpecs.Select(r => r.Specification).ToList();
             LibGit2Sharp.Commands.Fetch(repo, "origin", fetchSpecs, BuildFetchOptions(), null);
@@ -245,12 +247,13 @@ public sealed class GitService : IGitService
 
             if (remoteBranchName is null)
             {
-                Log.Warning("GitService: could not determine default branch on origin — empty remote?");
-                return false;
+                if (!repo.Branches.Any(b => b.IsRemote)) return; // A valid empty remote.
+                throw new InvalidOperationException("Kan de standaardbranch van de remote niet bepalen.");
             }
 
             var remoteBranch = repo.Branches[remoteBranchName.Replace("refs/remotes/", "")];
-            if (remoteBranch is null) return false;
+            if (remoteBranch is null)
+                throw new InvalidOperationException("De standaardbranch van de remote ontbreekt.");
 
             var localName = remoteBranch.FriendlyName.StartsWith("origin/")
                 ? remoteBranch.FriendlyName["origin/".Length..]
@@ -262,18 +265,18 @@ public sealed class GitService : IGitService
             repo.Refs.UpdateTarget("HEAD", localBranch.CanonicalName);
 
             Log.Information("GitService: bootstrapped from {Branch}", remoteBranch.FriendlyName);
-            return true;
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "GitService: bootstrap from remote failed");
-            return false;
+            throw;
         }
     }
 
     private void ExecutePull()
     {
-        if (!Repository.IsValid(_repoPath)) return;
+        if (!Repository.IsValid(_repoPath))
+            throw new InvalidOperationException("De lokale Git-repository is niet beschikbaar.");
 
         Status = GitSyncStatus.Syncing;
 
@@ -291,10 +294,8 @@ public sealed class GitService : IGitService
             {
                 // Local repo has no commits yet — try to bootstrap from the remote's default branch.
                 // This recovers from `git init` against an empty folder where a clone was needed.
-                if (BootstrapFromRemote(repo))
-                    Status = GitSyncStatus.Idle;
-                else
-                    Status = GitSyncStatus.Idle;
+                BootstrapFromRemote(repo);
+                Status = GitSyncStatus.Idle;
                 return;
             }
 
@@ -358,6 +359,7 @@ public sealed class GitService : IGitService
         {
             Log.Warning(ex, "GitService: pull failed");
             Status = GitSyncStatus.Error;
+            throw;
         }
     }
 
@@ -412,7 +414,8 @@ public sealed class GitService : IGitService
     private void ExecutePush()
     {
         if (!_pushQueue.HasPending) return;
-        if (!Repository.IsValid(_repoPath)) return;
+        if (!Repository.IsValid(_repoPath))
+            throw new InvalidOperationException("De lokale Git-repository is niet beschikbaar.");
 
         try
         {
@@ -433,7 +436,7 @@ public sealed class GitService : IGitService
                 if (entry.AttemptCount >= 5)
                 {
                     Log.Warning("GitService: push entry {Sha} exceeded max retries", entry.CommitSha[..7]);
-                    continue;
+                    throw new InvalidOperationException("Push is niet gelukt na vijf pogingen. De wijzigingen blijven lokaal bewaard.");
                 }
 
                 try
@@ -456,7 +459,7 @@ public sealed class GitService : IGitService
                             _channel.Writer.TryWrite(new PushOp(null));
                     });
 
-                    break; // Stop trying this session — backoff timer will retry
+                    throw; // Report failure to manual callers; the timer still retries later.
                 }
             }
 
@@ -466,6 +469,7 @@ public sealed class GitService : IGitService
         {
             Log.Warning(ex, "GitService: push failed");
             Status = GitSyncStatus.Error;
+            throw;
         }
     }
 
@@ -546,7 +550,7 @@ public sealed class GitService : IGitService
 
     private static (string User, string Pass)? InvokeGitCredentialFill(string url, string? username)
     {
-        var gitExe = FindGitExe();
+        var gitExe = GitExecutable.Find();
         if (gitExe is null) return null;
 
         var uri = new Uri(url);
@@ -577,22 +581,6 @@ public sealed class GitService : IGitService
         return dict.TryGetValue("username", out var u) && dict.TryGetValue("password", out var p)
             ? (u, p)
             : null;
-    }
-
-    private static string? FindGitExe()
-    {
-        var pathDirs = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(';');
-        foreach (var dir in pathDirs)
-        {
-            var candidate = Path.Combine(dir.Trim(), "git.exe");
-            if (File.Exists(candidate)) return candidate;
-        }
-        string[] wellKnown =
-        [
-            @"C:\Program Files\Git\bin\git.exe",
-            @"C:\Program Files\Git\cmd\git.exe",
-        ];
-        return wellKnown.FirstOrDefault(File.Exists);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SnippetLauncher.Core.Settings;
+using SnippetLauncher.Core.Sync;
 
 namespace SnippetLauncher.App.ViewModels;
 
@@ -10,6 +12,7 @@ public enum WizardStep { Welcome, RepoPath, Remote, Hotkeys, Done }
 public sealed partial class FirstRunWizardViewModel : ObservableObject
 {
     private readonly SettingsService _settings;
+    private readonly Func<string?> _findGitExecutable;
 
     [ObservableProperty] private WizardStep _currentStep = WizardStep.Welcome;
     [ObservableProperty] private string _repoPath = "";
@@ -19,6 +22,7 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "";
     [ObservableProperty] private bool _hasError;
     [ObservableProperty] private bool _canGoNext = true;
+    [ObservableProperty] private bool _needsGitInstallation;
 
     public bool IsWelcome => CurrentStep == WizardStep.Welcome;
     public bool IsRepoPath => CurrentStep == WizardStep.RepoPath;
@@ -39,9 +43,10 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
 
     public event EventHandler? Completed;
 
-    public FirstRunWizardViewModel(SettingsService settings)
+    public FirstRunWizardViewModel(SettingsService settings, Func<string?>? findGitExecutable = null)
     {
         _settings = settings;
+        _findGitExecutable = findGitExecutable ?? GitExecutable.Find;
         _searchHotkey = settings.Current.SearchHotkey;
         _quickAddHotkey = settings.Current.QuickAddHotkey;
     }
@@ -58,7 +63,19 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
         OnPropertyChanged(nameof(NextLabel));
         StatusMessage = "";
         HasError = false;
+        RefreshGitWarning();
     }
+
+    partial void OnRemoteUrlChanged(string value) => RefreshGitWarning();
+
+    private void RefreshGitWarning() => NeedsGitInstallation = IsRemote &&
+        !string.IsNullOrWhiteSpace(RemoteUrl) && _findGitExecutable() is null;
+
+    [RelayCommand]
+    private void OpenGitDownload() => Process.Start(new ProcessStartInfo("https://git-scm.com/download/win")
+    {
+        UseShellExecute = true,
+    });
 
     [RelayCommand]
     private void BrowseFolder()
