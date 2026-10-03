@@ -245,9 +245,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             await SyncAction();
             ShowSuccess("Synchronisatie voltooid.");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ShowError($"Sync fout: {ex.Message}");
+            ShowError("Synchronisatie mislukt. Controleer je verbinding, Remote URL en Git-aanmelding. " +
+                      "Hulp: https://github.com/Joepvw/snippetsapp/blob/master/docs/setup-second-user.md");
         }
     }
 

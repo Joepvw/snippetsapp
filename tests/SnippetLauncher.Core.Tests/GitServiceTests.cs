@@ -110,18 +110,10 @@ public sealed class GitServiceTests : IDisposable
         using var svc = BuildService(localDir);
         await svc.InitOrOpenAsync();
 
-        // Manually enqueue a pull by calling RetryPushNowAsync-equivalent — use internal pull trigger
-        // We'll wait briefly after which the file should appear
-        // (auto-sync timer is not started — trigger pull via a workaround using RetryPushNowAsync
-        // which internally calls push-only. For a true pull test, we drive the private pull op
-        // by temporarily calling the public API to trigger a pull.)
-        //
-        // Since StartAutoSync drives pulls on a timer we can't easily invoke directly in tests,
-        // we verify via the status instead after manually checking the divergence scenario.
-        // The integration test for full pull flow is covered by the conflict test below.
+        await svc.PullNowAsync();
 
-        File.Exists(Path.Combine(localDir, "remote-snippet.md")).Should().BeFalse(
-            "file is not yet pulled — pull is triggered by auto-sync timer, not tested here directly");
+        File.ReadAllText(Path.Combine(localDir, "remote-snippet.md")).Should().Be("# Remote");
+        svc.Status.Should().Be(GitSyncStatus.Idle);
     }
 
     // ── Conflict resolution ───────────────────────────────────────────────────
@@ -258,6 +250,137 @@ public sealed class GitServiceTests : IDisposable
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Pull_FetchFailure_FaultsCallerAndWorkerRecovers()
+    {
+        var (remote, local) = SetupRemoteAndClone();
+        var missingRemote = Path.Combine(_root, "missing-remote");
+        using (var repo = new Repository(local))
+            repo.Network.Remotes.Update("origin", r => r.Url = missingRemote);
+        using var svc = BuildService(local);
+        await svc.InitOrOpenAsync();
+
+        var pull = () => svc.PullNowAsync();
+        await pull.Should().ThrowAsync<Exception>();
+        svc.Status.Should().Be(GitSyncStatus.Error);
+
+        using (var repo = new Repository(local))
+            repo.Network.Remotes.Update("origin", r => r.Url = remote);
+        await svc.PullNowAsync();
+        svc.Status.Should().Be(GitSyncStatus.Idle);
+    }
+
+    [Fact]
+    public async Task Pull_BootstrapFetchFailure_FaultsCaller()
+    {
+        var local = Path.Combine(_root, "unborn");
+        Repository.Init(local);
+        using (var repo = new Repository(local))
+            repo.Network.Remotes.Add("origin", Path.Combine(_root, "missing-bootstrap-remote"));
+        using var svc = BuildService(local);
+        await svc.InitOrOpenAsync();
+
+        var pull = () => svc.PullNowAsync();
+        await pull.Should().ThrowAsync<Exception>();
+        svc.Status.Should().Be(GitSyncStatus.Error);
+        using var result = new Repository(local);
+        result.Head.Tip.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Pull_BootstrapSuccess_ChecksOutRemoteContent()
+    {
+        var (remote, _) = SetupRemoteAndClone();
+        var local = Path.Combine(_root, "bootstrap-success");
+        Repository.Init(local);
+        using (var repo = new Repository(local)) repo.Network.Remotes.Add("origin", remote);
+        using var svc = BuildService(local);
+        await svc.InitOrOpenAsync();
+        await svc.PullNowAsync();
+
+        File.ReadAllText(Path.Combine(local, "README.md")).Should().Be("# Snippets");
+        svc.Status.Should().Be(GitSyncStatus.Idle);
+    }
+
+    [Fact]
+    public async Task Pull_EmptyRemote_IsValidForNewLibrary()
+    {
+        var remote = Path.Combine(_root, "empty-remote");
+        Repository.Init(remote, isBare: true);
+        var local = Path.Combine(_root, "empty-local");
+        Repository.Init(local);
+        using (var repo = new Repository(local)) repo.Network.Remotes.Add("origin", remote);
+        using var svc = BuildService(local);
+        await svc.InitOrOpenAsync();
+        await svc.PullNowAsync();
+        svc.Status.Should().Be(GitSyncStatus.Idle);
+    }
+
+    [Fact]
+    public async Task Init_CloneFailure_PreservesLocalRepoButFaultsCaller()
+    {
+        var local = Path.Combine(_root, "clone-failure");
+        var missingRemote = Path.Combine(_root, "missing-clone-remote");
+        using var svc = new GitService(local, _clock, _dialog,
+            new PushQueueStore(Path.Combine(_root, "clone-queue.json")), missingRemote);
+
+        var init = () => svc.InitOrOpenAsync();
+        await init.Should().ThrowAsync<Exception>();
+        svc.Status.Should().Be(GitSyncStatus.Error);
+        Repository.IsValid(local).Should().BeTrue();
+        using var repo = new Repository(local);
+        repo.Network.Remotes["origin"].Url.Should().Be(missingRemote);
+    }
+
+    [Fact]
+    public async Task RetryPush_FailureKeepsQueue_ThenSuccessfulRetryDrainsIt()
+    {
+        var (remote, local) = SetupRemoteAndClone();
+        using var svc = BuildService(local);
+        await svc.InitOrOpenAsync();
+        using (var repo = new Repository(local))
+            repo.Network.Remotes.Update("origin", r => r.Url = Path.Combine(_root, "missing-push-remote"));
+        File.WriteAllText(Path.Combine(local, "pending.md"), "# Pending");
+        await svc.CommitAndQueuePushAsync("add pending");
+
+        var push = () => svc.RetryPushNowAsync();
+        await push.Should().ThrowAsync<Exception>();
+        svc.Status.Should().Be(GitSyncStatus.Error);
+
+        using (var repo = new Repository(local))
+            repo.Network.Remotes.Update("origin", r => r.Url = remote);
+        await svc.RetryPushNowAsync();
+        svc.Status.Should().Be(GitSyncStatus.Idle);
+        using var remoteRepo = new Repository(remote);
+        remoteRepo.Head.Tip["pending.md"].Target.Should().BeOfType<Blob>();
+    }
+
+    [Fact]
+    public async Task RetryPush_ExhaustedQueue_FaultsWithoutDiscardingChanges()
+    {
+        var (_, local) = SetupRemoteAndClone();
+        var queuePath = Path.Combine(_root, "exhausted-queue.json");
+        var queue = new PushQueueStore(queuePath);
+        using var svc = BuildService(local, queue);
+        await svc.InitOrOpenAsync();
+        using (var repo = new Repository(local))
+            queue.Enqueue(new PushQueueStore.PushEntry { CommitSha = repo.Head.Tip.Sha, AttemptCount = 5 });
+
+        var push = () => svc.RetryPushNowAsync();
+        await push.Should().ThrowAsync<InvalidOperationException>();
+        svc.Status.Should().Be(GitSyncStatus.Error);
+        new PushQueueStore(queuePath).Pending.Should().ContainSingle(e => e.AttemptCount == 5);
+    }
+
+    [Fact]
+    public async Task Pull_InvalidLocalRepo_FaultsCaller()
+    {
+        using var svc = BuildService(Path.Combine(_root, "missing-local"));
+        var pull = () => svc.PullNowAsync();
+        await pull.Should().ThrowAsync<InvalidOperationException>();
+        svc.Status.Should().Be(GitSyncStatus.Error);
+    }
 
     private GitService BuildService(string repoPath, PushQueueStore? pushQueue = null)
     {

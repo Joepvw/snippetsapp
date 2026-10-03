@@ -373,7 +373,7 @@ public partial class App : Application
     private async Task SyncNowAsync()
     {
         var svc = _gitService;
-        if (svc is null) return;
+        if (svc is null) throw new InvalidOperationException("Synchronisatie is niet beschikbaar.");
         await svc.PullNowAsync();
         await svc.RetryPushNowAsync();
     }

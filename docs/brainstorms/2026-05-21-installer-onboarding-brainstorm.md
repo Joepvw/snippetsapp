@@ -156,6 +156,11 @@ worden, Git for Windows installeren. Werkt wel maar bevestigt dat dit voor een
 
 ## Follow-up backlog (voor volgend planronde)
 
+Bijgewerkt 2026-10-03: follow-up 1 en 2 zijn gebouwd in de broncode, zie
+[het fixplan](../plans/2026-10-03-fix-onboarding-sync-status.md). Distributie naar
+geïnstalleerde gebruikers blijft afhankelijk van een aparte versie- en releasekeuze.
+Follow-up 3 en 4 blijven open.
+
 1. **Git for Windows-detectie in de first-run wizard.** Minimaal: bij de
    Remote-stap, als `git.exe` niet vindbaar is op PATH én er een Remote-URL is
    ingevuld, toon een waarschuwing met een directe link naar
