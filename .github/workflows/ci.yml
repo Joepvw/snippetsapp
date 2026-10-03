@@ -33,13 +33,13 @@ jobs:
           -c Release --no-build
           --collect:"XPlat Code Coverage"
           --results-directory coverage
-          --logger "github;verbosity=normal"
+          --logger "console;verbosity=normal"
 
       - name: Test App (NetArchTest)
         run: >
           dotnet test tests/SnippetLauncher.App.Tests/SnippetLauncher.App.Tests.csproj
           -c Release --no-build
-          --logger "github;verbosity=normal"
+          --logger "console;verbosity=normal"
 
       - name: Coverage gate (≥70%)
         shell: pwsh
