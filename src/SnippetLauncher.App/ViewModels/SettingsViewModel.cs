@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -231,6 +232,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenSyncHelp() => Process.Start(new ProcessStartInfo(
+        "https://github.com/Joepvw/snippetsapp/blob/master/docs/setup-second-user.md")
+    {
+        UseShellExecute = true,
+    });
+
+    [RelayCommand]
     private async Task SyncNowAsync()
     {
         if (SyncAction is null)
@@ -248,7 +256,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception)
         {
             ShowError("Synchronisatie mislukt. Controleer je verbinding, Remote URL en Git-aanmelding. " +
-                      "Hulp: https://github.com/Joepvw/snippetsapp/blob/master/docs/setup-second-user.md");
+                      "Klik op de hulp bij Synchronisatie.");
         }
     }
 

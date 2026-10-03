@@ -134,17 +134,6 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
         HasError = false;
         StatusMessage = "";
 
-        if (CurrentStep == WizardStep.Remote)
-        {
-            RefreshGitWarning();
-            if (NeedsGitInstallation)
-            {
-                StatusMessage = "Installeer Git for Windows voor synchronisatie, of wis de Remote URL om lokaal verder te gaan.";
-                HasError = true;
-                return false;
-            }
-        }
-
         if (CurrentStep == WizardStep.RepoPath)
         {
             if (string.IsNullOrWhiteSpace(RepoPath))
