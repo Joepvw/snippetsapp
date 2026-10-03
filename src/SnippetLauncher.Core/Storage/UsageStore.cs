@@ -15,7 +15,13 @@ public sealed class UsageStore : IDisposable
     private readonly IClock _clock;
     private readonly Dictionary<string, UsageEntry> _entries = [];
     private readonly Timer _flushTimer;
-    private bool _dirty;
+    private readonly object _gate = new();
+    private readonly object _flushGate = new();
+    private long _version;
+    private long _flushedVersion;
+    private bool _disposed;
+    private bool _preservationFailed;
+    public Exception? LastPersistenceError { get; private set; }
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public UsageStore(string filePath, IClock clock)
@@ -28,53 +34,90 @@ public sealed class UsageStore : IDisposable
 
     public SnippetUsage Get(string id)
     {
-        if (_entries.TryGetValue(id, out var e))
-            return new SnippetUsage(e.UsageCount, e.LastUsed, e.MergedFrom ?? []);
-        return new SnippetUsage(0, DateTimeOffset.MinValue, []);
+        lock (_gate)
+        {
+            if (_entries.TryGetValue(id, out var e))
+                return new SnippetUsage(e.UsageCount, e.LastUsed, Array.AsReadOnly((e.MergedFrom ?? []).ToArray()));
+            return new SnippetUsage(0, DateTimeOffset.MinValue, []);
+
+        }
     }
 
     public void RecordUse(string id)
     {
-        if (!_entries.TryGetValue(id, out var e))
-            e = new UsageEntry { Id = id };
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_entries.TryGetValue(id, out var e))
+                e = new UsageEntry { Id = id };
 
-        e.UsageCount++;
-        e.LastUsed = _clock.UtcNow;
-        _entries[id] = e;
-        _dirty = true;
+            e.UsageCount++;
+            e.LastUsed = _clock.UtcNow;
+            _entries[id] = e;
+            _version++;
 
-        // Debounce: reset 30s timer on each use
-        _flushTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+            // Debounce: reset 30s timer on each use
+            _flushTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+
+        }
     }
 
     public void MergeFrom(string newId, string oldId)
     {
-        var entry = _entries.TryGetValue(newId, out var e) ? e : new UsageEntry { Id = newId };
-        entry.MergedFrom ??= [];
-        if (!entry.MergedFrom.Contains(oldId))
-            entry.MergedFrom.Add(oldId);
-
-        if (_entries.TryGetValue(oldId, out var old))
+        lock (_gate)
         {
-            entry.UsageCount += old.UsageCount;
-            if (old.LastUsed > entry.LastUsed)
-                entry.LastUsed = old.LastUsed;
-            _entries.Remove(oldId);
-        }
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var entry = _entries.TryGetValue(newId, out var e) ? e : new UsageEntry { Id = newId };
+            entry.MergedFrom ??= [];
+            if (!entry.MergedFrom.Contains(oldId))
+                entry.MergedFrom.Add(oldId);
 
-        _entries[newId] = entry;
-        _dirty = true;
-        _flushTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+            if (_entries.TryGetValue(oldId, out var old))
+            {
+                entry.UsageCount += old.UsageCount;
+                if (old.LastUsed > entry.LastUsed)
+                    entry.LastUsed = old.LastUsed;
+                _entries.Remove(oldId);
+            }
+
+            _entries[newId] = entry;
+            _version++;
+            _flushTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+
+        }
     }
 
     public void Flush()
     {
-        if (!_dirty) return;
-        var dir = Path.GetDirectoryName(_filePath);
-        if (dir is not null) Directory.CreateDirectory(dir);
-        var data = new UsageData { ById = _entries };
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(data, JsonOptions));
-        _dirty = false;
+        lock (_flushGate)
+        {
+            string json;
+            long version;
+            lock (_gate)
+            {
+                if (_preservationFailed) return;
+                version = _version;
+                if (version == _flushedVersion) return;
+                json = JsonSerializer.Serialize(new UsageData { ById = _entries }, JsonOptions);
+            }
+            var temporary = _filePath + ".tmp";
+            try
+            {
+                var dir = Path.GetDirectoryName(_filePath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(temporary, json);
+                if (File.Exists(_filePath)) File.Replace(temporary, _filePath, _filePath + ".bak");
+                else File.Move(temporary, _filePath);
+                lock (_gate) _flushedVersion = version;
+                LastPersistenceError = null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LastPersistenceError = ex;
+                lock (_gate)
+                    if (!_disposed) _flushTimer.Change(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+            }
+        }
     }
 
     private void FlushIfDirty() => Flush();
@@ -86,19 +129,29 @@ public sealed class UsageStore : IDisposable
         {
             var json = File.ReadAllText(_filePath);
             var data = JsonSerializer.Deserialize<UsageData>(json, JsonOptions);
-            if (data?.ById is null) return;
+            if (data?.ById is null || data.ById.Any(kv => kv.Value is null || kv.Value.UsageCount < 0))
+                throw new JsonException("Invalid usage data.");
             foreach (var kv in data.ById)
                 _entries[kv.Key] = kv.Value;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
-            // Corrupt stats file — start fresh, don't crash.
+            LastPersistenceError = ex;
+            // Preserve the original bytes before allowing subsequent writes.
+            try { File.Copy(_filePath, _filePath + ".corrupt-" + Guid.NewGuid().ToString("N")); }
+            catch (Exception copyError) when (copyError is IOException or UnauthorizedAccessException)
+            { LastPersistenceError = copyError; _preservationFailed = true; }
         }
     }
 
     public void Dispose()
     {
-        _flushTimer.Dispose();
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _flushTimer.Dispose();
+        }
         Flush();
     }
 

@@ -20,42 +20,41 @@ public sealed class SearchService
         _repository = repository;
         _clock = clock;
 
-        _repository.SnippetChanged += (_, _) => { /* index is live via GetAll() */ };
-        _repository.SnippetRemoved += (_, _) => { };
     }
 
-    public IReadOnlyList<ScoredSnippet> Query(string query, int limit = 8)
+    private readonly object _indexLock = new();
+    private IReadOnlyList<Snippet>? _source;
+    private Prepared[] _index = [];
+    private sealed record Prepared(Snippet Snippet, string Title, string Tags, string Body);
+
+    public IReadOnlyList<ScoredSnippet> Query(string query, int limit = 8, CancellationToken cancellationToken = default)
     {
-        var snippets = _repository.GetAll();
-        if (snippets.Count == 0) return [];
-
-        if (string.IsNullOrWhiteSpace(query))
-            return snippets
-                .Select(s => new ScoredSnippet(s, UsageScore(s.Id)))
-                .OrderByDescending(x => x.Score)
-                .Take(limit)
-                .ToList();
-
+        Prepared[] index;
+        var snapshot = _repository.GetAll();
+        lock (_indexLock)
+        {
+            if (!ReferenceEquals(snapshot, _source))
+            {
+                _index = snapshot.Select(s => new Prepared(s, s.Title.ToLowerInvariant(),
+                    string.Join(" ", s.Tags).ToLowerInvariant(),
+                    s.Body[..Math.Min(500, s.Body.Length)].ToLowerInvariant())).ToArray();
+                _source = snapshot;
+            }
+            index = _index;
+        }
         var q = query.Trim().ToLowerInvariant();
-
-        return snippets
-            .Select(s => new ScoredSnippet(s, ComputeScore(s, q)))
-            .Where(x => x.Score > 0.3)
-            .OrderByDescending(x => x.Score)
-            .Take(limit)
-            .ToList();
-    }
-
-    private double ComputeScore(Snippet snippet, string query)
-    {
-        var titleScore = Fuzz.PartialRatio(query, snippet.Title.ToLowerInvariant()) / 100.0;
-        var tagsStr = string.Join(" ", snippet.Tags).ToLowerInvariant();
-        var tagsScore = tagsStr.Length > 0 ? Fuzz.PartialRatio(query, tagsStr) / 100.0 : 0.0;
-        var bodyPreview = snippet.Body.Length > 500 ? snippet.Body[..500] : snippet.Body;
-        var bodyScore = Fuzz.PartialRatio(query, bodyPreview.ToLowerInvariant()) / 100.0;
-
-        var fuzzy = 0.6 * titleScore + 0.3 * tagsScore + 0.1 * bodyScore;
-        return fuzzy + UsageScore(snippet.Id);
+        var results = new List<ScoredSnippet>(index.Length);
+        foreach (var item in index)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var score = UsageScore(item.Snippet.Id);
+            if (q.Length > 0)
+                score += 0.006 * Fuzz.PartialRatio(q, item.Title)
+                    + (item.Tags.Length > 0 ? 0.003 * Fuzz.PartialRatio(q, item.Tags) : 0)
+                    + 0.001 * Fuzz.PartialRatio(q, item.Body);
+            if (q.Length == 0 || score > 0.3) results.Add(new ScoredSnippet(item.Snippet, score));
+        }
+        return results.OrderByDescending(x => x.Score).Take(limit).ToArray();
     }
 
     private double UsageScore(string id)

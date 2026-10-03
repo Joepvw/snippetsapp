@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Channels;
 using SnippetLauncher.Core.Abstractions;
 using SnippetLauncher.Core.Domain;
+using SnippetLauncher.Core.Infrastructure;
 
 namespace SnippetLauncher.Core.Storage;
 
@@ -22,17 +23,21 @@ public sealed class SnippetRemovedEventArgs(string id) : EventArgs
 /// the in-memory dictionary has exactly one writer. FileSystemWatcher events
 /// are echo-suppressed to avoid reloading files we just wrote ourselves.
 /// </summary>
-public sealed class SnippetRepository : IDisposable
+public sealed class SnippetRepository : IDisposable, IAsyncDisposable
 {
     private readonly string _snippetsDir;
     private readonly UsageStore _usage;
     private readonly IClock _clock;
+    public LibraryFileGate FileGate { get; } = new();
 
     private readonly Dictionary<string, Snippet> _snippets = [];
     private readonly Channel<RepoOp> _channel = Channel.CreateUnbounded<RepoOp>(new UnboundedChannelOptions { SingleReader = true });
     private readonly ConcurrentDictionary<string, (string Hash, DateTimeOffset Expiry)> _expectedWrites = new();
     private readonly Task _processorTask;
-    private readonly CancellationTokenSource _cts = new();
+    private IReadOnlyList<Snippet> _snapshot = Array.AsReadOnly(Array.Empty<Snippet>());
+    private IReadOnlyList<string> _badSnapshot = Array.AsReadOnly(Array.Empty<string>());
+    public event EventHandler? LibraryChanged;
+    public Exception? LastStorageError { get; private set; }
 
     private FileSystemWatcher? _watcher;
 
@@ -40,7 +45,7 @@ public sealed class SnippetRepository : IDisposable
     public event EventHandler<SnippetRemovedEventArgs>? SnippetRemoved;
 
     // Snippets that failed to parse — exposed so the editor can show a "fix" action.
-    public IReadOnlyList<string> MalformedSnippetPaths => _malformed;
+    public IReadOnlyList<string> MalformedSnippetPaths => Volatile.Read(ref _badSnapshot);
     private readonly List<string> _malformed = [];
 
     public SnippetRepository(string snippetsDir, UsageStore usage, IClock clock)
@@ -53,26 +58,26 @@ public sealed class SnippetRepository : IDisposable
 
     public async Task LoadAllAsync()
     {
-        var tcs = new TaskCompletionSource();
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await _channel.Writer.WriteAsync(new LoadAllOp(tcs));
         await tcs.Task;
-        StartWatcher();
+
     }
 
-    public IReadOnlyList<Snippet> GetAll() => [.. _snippets.Values];
+    public IReadOnlyList<Snippet> GetAll() => Volatile.Read(ref _snapshot);
 
-    public Snippet? Get(string id) => _snippets.GetValueOrDefault(id);
+    public Snippet? Get(string id) => GetAll().FirstOrDefault(s => s.Id == id);
 
     public async Task<Snippet> SaveAsync(Snippet snippet)
     {
-        var tcs = new TaskCompletionSource<Snippet>();
+        var tcs = new TaskCompletionSource<Snippet>(TaskCreationOptions.RunContinuationsAsynchronously);
         await _channel.Writer.WriteAsync(new SaveOp(snippet, tcs));
         return await tcs.Task;
     }
 
     public async Task DeleteAsync(string id)
     {
-        var tcs = new TaskCompletionSource();
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await _channel.Writer.WriteAsync(new DeleteOp(id, tcs));
         await tcs.Task;
     }
@@ -85,10 +90,11 @@ public sealed class SnippetRepository : IDisposable
 
     private async Task ProcessChannelAsync()
     {
-        await foreach (var op in _channel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
+        await foreach (var op in _channel.Reader.ReadAllAsync().ConfigureAwait(false))
         {
             try
             {
+                using var fileLease = await FileGate.EnterAsync().ConfigureAwait(false);
                 switch (op)
                 {
                     case LoadAllOp load:
@@ -106,10 +112,21 @@ public sealed class SnippetRepository : IDisposable
                         del.Completion.SetResult();
                         break;
 
+                    case RescanOp:
+                        ExecuteLoadAll();
+                        break;
+                    case DrainOp drain:
+                        drain.Completion.SetResult();
+                        break;
                     case ExternalChangeOp ext:
                         ExecuteExternalChange(ext.Path);
                         break;
                 }
+            }
+            catch (Exception ex) when (op is ExternalChangeOp or RescanOp)
+            {
+                LastStorageError = ex;
+                // One unreadable external file must not terminate the worker.
             }
             catch (Exception ex) when (op is SaveOp s2)
             {
@@ -128,16 +145,37 @@ public sealed class SnippetRepository : IDisposable
 
     private void ExecuteLoadAll()
     {
-        _snippets.Clear();
-        _malformed.Clear();
-
-        if (!Directory.Exists(_snippetsDir))
-            Directory.CreateDirectory(_snippetsDir);
-
-        foreach (var file in Directory.EnumerateFiles(_snippetsDir, "*.md"))
+        var previous = _snippets.ToDictionary();
+        var previousMalformed = _malformed.ToArray();
+        try
         {
-            var id = Path.GetFileNameWithoutExtension(file);
-            TryParseAndStore(id, file);
+            _snippets.Clear();
+            _malformed.Clear();
+
+            if (!Directory.Exists(_snippetsDir))
+                Directory.CreateDirectory(_snippetsDir);
+
+            StartWatcher();
+            foreach (var file in Directory.EnumerateFiles(_snippetsDir, "*.md"))
+            {
+                var id = Path.GetFileNameWithoutExtension(file);
+                try { TryParseAndStore(id, file); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    LastStorageError = ex;
+                    if (previous.TryGetValue(id, out var retained)) _snippets[id] = retained;
+                    if (!_malformed.Contains(file)) _malformed.Add(file);
+                }
+            }
+            PublishSnapshot();
+        }
+        catch
+        {
+            _snippets.Clear();
+            foreach (var entry in previous) _snippets.Add(entry.Key, entry.Value);
+            _malformed.Clear();
+            _malformed.AddRange(previousMalformed);
+            throw;
         }
     }
 
@@ -145,7 +183,7 @@ public sealed class SnippetRepository : IDisposable
     {
         Directory.CreateDirectory(_snippetsDir);
 
-        var updated = snippet with { Updated = _clock.UtcNow };
+        var updated = snippet with { Updated = _clock.UtcNow, Tags = Array.AsReadOnly(snippet.Tags.ToArray()), Placeholders = Array.AsReadOnly(snippet.Placeholders.ToArray()) };
         var content = SnippetSerializer.Serialize(updated);
         var hash = ComputeHash(content);
         var filePath = SnippetPath(updated.Id);
@@ -158,6 +196,7 @@ public sealed class SnippetRepository : IDisposable
         File.Move(tmpPath, filePath, overwrite: true);
 
         _snippets[updated.Id] = updated;
+        PublishSnapshot();
         SnippetChanged?.Invoke(this, new SnippetChangedEventArgs(updated));
         return updated;
     }
@@ -171,6 +210,7 @@ public sealed class SnippetRepository : IDisposable
             File.Delete(filePath);
         }
         _snippets.Remove(id);
+        PublishSnapshot();
         SnippetRemoved?.Invoke(this, new SnippetRemovedEventArgs(id));
     }
 
@@ -180,12 +220,11 @@ public sealed class SnippetRepository : IDisposable
         {
             var removedId = Path.GetFileNameWithoutExtension(filePath);
             if (_snippets.Remove(removedId))
-                SnippetRemoved?.Invoke(this, new SnippetRemovedEventArgs(removedId));
+                PublishSnapshot();
             return;
         }
 
-        var content = TryReadFile(filePath);
-        if (content is null) return;
+        var content = ReadFileWithRetry(filePath);
 
         var hash = ComputeHash(content);
 
@@ -201,35 +240,41 @@ public sealed class SnippetRepository : IDisposable
         }
 
         var id = Path.GetFileNameWithoutExtension(filePath);
-        TryParseAndStore(id, filePath);
+        if (TryParseAndStore(id, filePath)) PublishSnapshot();
     }
 
-    private void TryParseAndStore(string id, string filePath)
+    private bool TryParseAndStore(string id, string filePath)
     {
-        var content = TryReadFile(filePath);
-        if (content is null) return;
+        var content = ReadFileWithRetry(filePath);
 
         try
         {
             var snippet = SnippetSerializer.Deserialize(id, content);
-            _snippets[id] = snippet;
-            SnippetChanged?.Invoke(this, new SnippetChangedEventArgs(snippet));
+            if (_snippets.TryGetValue(id, out var existing)
+                && SnippetSerializer.Serialize(existing) == SnippetSerializer.Serialize(snippet)
+                && !_malformed.Contains(filePath)) return false;
+            _snippets[id] = snippet with { Tags = Array.AsReadOnly(snippet.Tags.ToArray()), Placeholders = Array.AsReadOnly(snippet.Placeholders.ToArray()) };
+
             _malformed.Remove(filePath);
+            return true;
         }
         catch
         {
+            if (_malformed.Contains(filePath)) return false;
             _malformed.Add(filePath);
+            return true;
         }
     }
 
-    private static string? TryReadFile(string path)
+    private static string ReadFileWithRetry(string path)
     {
+        IOException? error = null;
         for (var attempt = 0; attempt < 3; attempt++)
         {
             try { return File.ReadAllText(path, Encoding.UTF8); }
-            catch (IOException) { Thread.Sleep(50); }
+            catch (IOException ex) { error = ex; Thread.Sleep(50); }
         }
-        return null;
+        throw error!;
     }
 
     // ── FileSystemWatcher ────────────────────────────────────────────────────
@@ -238,39 +283,63 @@ public sealed class SnippetRepository : IDisposable
 
     private void StartWatcher()
     {
-        _watcher = new FileSystemWatcher(_snippetsDir, "*.md")
+        lock (_lifecycle)
         {
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
-            EnableRaisingEvents = true,
-            IncludeSubdirectories = false,
-        };
-        _watcher.Changed += OnWatcherEvent;
-        _watcher.Created += OnWatcherEvent;
-        _watcher.Deleted += OnWatcherEvent;
-        _watcher.Renamed += (_, e) =>
-        {
-            OnWatcherEvent(null, new FileSystemEventArgs(WatcherChangeTypes.Deleted, _snippetsDir, e.OldName));
-            OnWatcherEvent(null, new FileSystemEventArgs(WatcherChangeTypes.Created, _snippetsDir, e.Name));
-        };
+            if (_disposed) return;
+            // A staged sync recovery can replace the directory at this path.
+            // Recreate the handle before scanning so it follows the active directory.
+            _watcher?.Dispose();
+            foreach (var debounce in _debounceTokens.Values) debounce.Cancel();
+            _watcher = new FileSystemWatcher(_snippetsDir, "*.md")
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
+                EnableRaisingEvents = false,
+                IncludeSubdirectories = false,
+            };
+            _watcher.Changed += OnWatcherEvent;
+            _watcher.Created += OnWatcherEvent;
+            _watcher.Deleted += OnWatcherEvent;
+            _watcher.Renamed += (_, e) =>
+            {
+                OnWatcherEvent(null, new FileSystemEventArgs(WatcherChangeTypes.Deleted, _snippetsDir, e.OldName));
+                OnWatcherEvent(null, new FileSystemEventArgs(WatcherChangeTypes.Created, _snippetsDir, e.Name));
+            };
+            _watcher.Error += (_, _) => _channel.Writer.TryWrite(new RescanOp());
+            _watcher.EnableRaisingEvents = true;
+        }
     }
 
     private void OnWatcherEvent(object? sender, FileSystemEventArgs e)
     {
-        // Debounce per path: cancel previous timer and start a new 300ms one
-        if (_debounceTokens.TryGetValue(e.FullPath, out var prev))
+        lock (_lifecycle)
         {
-            prev.Cancel();
-            prev.Dispose();
+            if (_disposed) return;
+            if (_debounceTokens.TryGetValue(e.FullPath, out var previous)) previous.Cancel();
+            var cancellation = new CancellationTokenSource();
+            _debounceTokens[e.FullPath] = cancellation;
+            _ = QueueExternalChangeAsync(e.FullPath, cancellation);
         }
-        var cts = new CancellationTokenSource();
-        _debounceTokens[e.FullPath] = cts;
+    }
 
-        Task.Delay(300, cts.Token).ContinueWith(t =>
+    private async Task QueueExternalChangeAsync(string path, CancellationTokenSource cancellation)
+    {
+        try
         {
-            if (t.IsCanceled) return;
-            _debounceTokens.TryRemove(e.FullPath, out _);
-            _channel.Writer.TryWrite(new ExternalChangeOp(e.FullPath));
-        });
+            await Task.Delay(300, cancellation.Token).ConfigureAwait(false);
+            lock (_lifecycle)
+                if (!_disposed && !cancellation.IsCancellationRequested)
+                    _channel.Writer.TryWrite(new ExternalChangeOp(path));
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            lock (_lifecycle)
+            {
+                if (_debounceTokens.TryGetValue(path, out var current) && ReferenceEquals(current, cancellation))
+                    _debounceTokens.TryRemove(path, out _);
+                cancellation.Dispose();
+            }
+        }
     }
 
     private string SnippetPath(string id) => Path.Combine(_snippetsDir, $"{id}.md");
@@ -281,22 +350,43 @@ public sealed class SnippetRepository : IDisposable
         return Convert.ToHexString(bytes);
     }
 
-    private bool _disposed;
-    public void Dispose()
+    private void PublishSnapshot()
     {
-        if (_disposed) return;
-        _disposed = true;
+        Volatile.Write(ref _snapshot, Array.AsReadOnly(_snippets.Values.ToArray()));
+        Volatile.Write(ref _badSnapshot, Array.AsReadOnly(_malformed.ToArray()));
+        LibraryChanged?.Invoke(this, EventArgs.Empty);
+    }
 
-        try { _cts.Cancel(); } catch (ObjectDisposedException) { }
-        try { _channel.Writer.Complete(); } catch { }
-        _watcher?.Dispose();
-        _usage.Dispose();
-        _cts.Dispose();
+    public async Task DrainAsync()
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await _channel.Writer.WriteAsync(new DrainOp(completion));
+        await completion.Task;
+    }
+
+    private bool _disposed;
+    private readonly object _lifecycle = new();
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+    public async ValueTask DisposeAsync()
+    {
+        lock (_lifecycle)
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                _watcher?.Dispose();
+                foreach (var timer in _debounceTokens.Values) timer.Cancel();
+                _channel.Writer.TryComplete();
+            }
+        }
+        await _processorTask.ConfigureAwait(false);
     }
 
     // ── Channel operation types ──────────────────────────────────────────────
 
     private abstract record RepoOp;
+    private sealed record RescanOp : RepoOp;
+    private sealed record DrainOp(TaskCompletionSource Completion) : RepoOp;
     private sealed record LoadAllOp(TaskCompletionSource Completion) : RepoOp;
     private sealed record SaveOp(Snippet Snippet, TaskCompletionSource<Snippet> Completion) : RepoOp;
     private sealed record DeleteOp(string Id, TaskCompletionSource Completion) : RepoOp;

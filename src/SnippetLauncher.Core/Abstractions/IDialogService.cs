@@ -4,6 +4,7 @@ namespace SnippetLauncher.Core.Abstractions;
 
 public interface IDialogService
 {
+    Task<bool?> ConfirmImportConflictsAsync(IReadOnlyList<string> relativePaths) => Task.FromResult<bool?>(null);
     /// <summary>
     /// Shows a fill-in dialog for snippet placeholders.
     /// Returns null if the user cancelled.

@@ -40,12 +40,10 @@ om met een collega of tussen je eigen machines dezelfde bibliotheek te delen.
 Vraag de eigenaar van de gedeelde repo om de HTTPS-URL en (als de repo privé is)
 om je toe te voegen als collaborator.
 
-Voor privé-repo's vraagt Git Credential Manager bij de eerste sync om inloggegevens.
-Gebruik een **Personal Access Token (PAT)** als wachtwoord
-([GitHub PAT aanmaken](https://github.com/settings/tokens) — minimaal `repo`-scope).
+Open na het instellen **Instellingen → Opslag → Aanmelden bij GitHub**. Gebruik het account dat de uitnodiging voor deze repository heeft geaccepteerd. Achtergrondsync vraagt niet steeds om aanmelden; na een aanmeldfout blijft lokaal werken mogelijk. Plaats nooit accountgegevens of tokens in de URL.
 
 > Wil je de repo liever zelf eerst klonen via de terminal? Dat mag ook —
-> kies dan in Stap 3 de geklonde map en laat het Remote-veld leeg.
+> kies dan in Stap 3 de geklonde map en vul ook de HTTPS-URL in. Een leeg Remote-veld schakelt synchronisatie uit.
 
 ## Stap 3 — First-run wizard doorlopen
 
@@ -85,9 +83,11 @@ Een backup van de lokale versie wordt opgeslagen in `<snippets-map>/.local/confl
 |----------|-----------|
 | App start niet (SmartScreen) | Zie Stap 1 — blokkering opheffen |
 | Hotkey werkt niet | Ga naar tray → Instellingen → Sneltoetsen en kies een andere combinatie |
-| Git auth-fout | Verwijder de opgeslagen credential via **Credential Manager** in Windows en probeer opnieuw |
+| Git auth-fout | Kies **Aanmelden bij GitHub** in Instellingen → Opslag; controleer account, uitnodiging en repositoryrechten |
 | Snippets worden niet gesynchroniseerd | Controleer of Git for Windows is geïnstalleerd en of de remote URL klopt (tray → Instellingen → Opslag) |
 
 ## Logbestanden
 
 Logbestanden staan in `%APPDATA%\SnippetLauncher\log\`. Stuur deze mee bij een bugreport.
+
+Een gewijzigde snippets-map wordt pas actief na herstart. Bewaar je concept vóór afsluiten. Zie [sync-stuck.md](runbooks/sync-stuck.md) voor veilig herstel na een mislukte eerste clone.

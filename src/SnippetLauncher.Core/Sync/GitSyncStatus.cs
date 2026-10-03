@@ -8,4 +8,6 @@ public enum GitSyncStatus
     Conflict,
     Error,
     NoRemote,
+    AuthenticationRequired,
+    RemoteUnavailable,
 }

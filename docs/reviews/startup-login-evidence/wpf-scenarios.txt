@@ -1,0 +1,20 @@
+PASS: One LibraryChanged publishes complete initial synthetic snapshot
+PASS: External same and other snippet reload preserve body and placeholder draft
+PASS: Dirty selection remains alpha after external reload
+PASS: Actual WPF ListBox binding restores selection after Cancel
+PASS: Cancel selection preserves draft and source
+PASS: Cancel New preserves draft
+PASS: Cancel Quick Add returns false and preserves draft
+PASS: Cancel exit prevents departure and preserves dirty state
+PASS: Placeholder-only change marks draft dirty
+PASS: New body-only draft marks dirty
+PASS: Yes guard saves synthetic draft before leaving
+PASS: No guard discards draft and loads newly selected snippet
+PASS: Late save after discard and New cannot attach old snippet identity to new draft
+PASS: Snapshot refresh preserves an empty New draft identity
+PASS: Shutdown drain times out behind a stalled real Git worker while durable local files remain intact
+PASS: Immediate Enter after Alpha to Beta copies current Beta results
+PASS: Late focus retry does not select already typed text
+PASS: Late callbacks do not reactivate closed popup
+PASS: Rapid reopen preserves new typing and latest result
+ARTIFACT: search-popup.png actual WPF RenderTargetBitmap

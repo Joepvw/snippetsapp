@@ -137,3 +137,7 @@ naar [setup-second-user.md](setup-second-user.md).
 ## Logbestanden
 
 `%APPDATA%\SnippetLauncher\log\` — stuur deze mee bij een bugreport.
+
+## Aanmelding en latere mapwijzigingen
+
+Kies bij een private repository **Instellingen → Opslag → Aanmelden bij GitHub**. Achtergrondwerk toont geen herhaalde loginprompts. Laat de remote leeg om alleen lokaal te werken. Een andere snippets-map wordt na herstart actief; huidige saves blijven tot dan in de oorspronkelijke map. Zie [veilig syncherstel](runbooks/sync-stuck.md).

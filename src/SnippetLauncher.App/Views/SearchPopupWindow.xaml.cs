@@ -15,6 +15,7 @@ public partial class SearchPopupWindow : Window
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
     private SearchPopupViewModel? _vm;
+    private int _showGeneration;
 
     public SearchPopupWindow()
     {
@@ -41,6 +42,7 @@ public partial class SearchPopupWindow : Window
         }
 
         Visibility = Visibility.Visible;
+        var generation = ++_showGeneration;
         // Toggle Topmost to force this window to the front of the topmost z-order,
         // even when a Topmost dialog (PlaceholderFillDialog) is also open.
         Topmost = false;
@@ -49,17 +51,19 @@ public partial class SearchPopupWindow : Window
         GlobalHotkeyService.BringToForeground(hwnd);
         Activate();
         _vm?.OnActivated();
+        SearchBox.Focus();
+        Keyboard.Focus(SearchBox);
 
         // Op de eerste show is de HWND net gemaakt en faalt SetForegroundWindow soms.
         // Retry foregrounding + focus na window-init (ApplicationIdle = na Loaded/Render).
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            if (generation != _showGeneration || !IsVisible || SearchBox.Text.Length > 0) return;
             var h = new WindowInteropHelper(this).Handle;
             GlobalHotkeyService.BringToForeground(h);
             Activate();
             SearchBox.Focus();
             Keyboard.Focus(SearchBox);
-            SearchBox.SelectAll();
         }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
@@ -100,7 +104,7 @@ public partial class SearchPopupWindow : Window
     {
         // Post-Enter sequence:
         // 1. Hide popup (give focus back to target window)
-        Visibility = Visibility.Collapsed;
+        HidePopup();
         ReleaseMouseCapture();
 
         // 2. Wait one frame so the target window gets focus
@@ -110,12 +114,18 @@ public partial class SearchPopupWindow : Window
         // (nothing more to do — user presses Ctrl+V in their app)
     }
 
-    private void HidePopup() => Visibility = Visibility.Collapsed;
+    public void ClosePopup() => HidePopup();
+
+    private void HidePopup()
+    {
+        ++_showGeneration;
+        _vm?.OnHidden();
+        Visibility = Visibility.Collapsed;
+    }
 
     private void FocusSearchBox()
     {
         SearchBox.Focus();
-        SearchBox.SelectAll();
     }
 
     protected override void OnActivated(EventArgs e)
