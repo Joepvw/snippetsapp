@@ -2,6 +2,7 @@ using FluentAssertions;
 using LibGit2Sharp;
 using SnippetLauncher.Core.Abstractions;
 using SnippetLauncher.Core.Domain;
+using SnippetLauncher.Core.Storage;
 using SnippetLauncher.Core.Sync;
 
 namespace SnippetLauncher.Core.Tests;
@@ -44,6 +45,24 @@ public sealed class GitServiceTests : IDisposable
     }
 
     // ── Commit ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ExplicitEmptyRemote_DisablesExistingOriginAndKeepsLocalCommits()
+    {
+        var repoDir = SetupRepoWithInitialCommit();
+        using (var repo = new Repository(repoDir))
+            repo.Network.Remotes.Add("origin", "https://example.test/repo");
+        await using var service = new GitService(repoDir, _clock, _dialog,
+            new PushQueueStore(Path.Combine(_root, "disabled-queue.json")), remoteUrl: "");
+        await service.InitOrOpenAsync();
+        File.WriteAllText(Path.Combine(repoDir, "local.md"), "local");
+        await service.CommitAndQueuePushAsync("local change");
+        await service.RetryPushNowAsync();
+        using var reopened = new Repository(repoDir);
+        reopened.Network.Remotes["origin"].Should().BeNull();
+        reopened.Commits.Count().Should().Be(2);
+        service.Status.Should().Be(GitSyncStatus.NoRemote);
+    }
 
     [Fact]
     public async Task CommitAndQueuePush_StagedChanges_CreatesCommitAndQueuesEntry()
@@ -156,11 +175,8 @@ public sealed class GitServiceTests : IDisposable
         using var svc = BuildService(localDir);
         await svc.InitOrOpenAsync();
 
-        // Trigger pull by calling the service — we use a short-interval auto-sync
-        // and wait long enough for it to fire once
-        var editorDirty = false;
-        svc.StartAutoSync(1, () => editorDirty);
-        await Task.Delay(5000); // wait for pull timer to fire + process
+        // Await the actual channel operation before asserting its final side effects.
+        await svc.PullNowAsync();
 
         // Assert: file content is the remote version (remote wins)
         var content = File.ReadAllText(Path.Combine(localDir, fileName));
@@ -263,7 +279,7 @@ public sealed class GitServiceTests : IDisposable
 
         var pull = () => svc.PullNowAsync();
         await pull.Should().ThrowAsync<Exception>();
-        svc.Status.Should().Be(GitSyncStatus.Error);
+        svc.Status.Should().Be(GitSyncStatus.RemoteUnavailable);
 
         using (var repo = new Repository(local))
             repo.Network.Remotes.Update("origin", r => r.Url = remote);
@@ -283,7 +299,7 @@ public sealed class GitServiceTests : IDisposable
 
         var pull = () => svc.PullNowAsync();
         await pull.Should().ThrowAsync<Exception>();
-        svc.Status.Should().Be(GitSyncStatus.Error);
+        svc.Status.Should().Be(GitSyncStatus.RemoteUnavailable);
         using var result = new Repository(local);
         result.Head.Tip.Should().BeNull();
     }
@@ -327,7 +343,7 @@ public sealed class GitServiceTests : IDisposable
 
         var init = () => svc.InitOrOpenAsync();
         await init.Should().ThrowAsync<Exception>();
-        svc.Status.Should().Be(GitSyncStatus.Error);
+        svc.Status.Should().Be(GitSyncStatus.RemoteUnavailable);
         Repository.IsValid(local).Should().BeTrue();
         using var repo = new Repository(local);
         repo.Network.Remotes["origin"].Url.Should().Be(missingRemote);
@@ -346,7 +362,7 @@ public sealed class GitServiceTests : IDisposable
 
         var push = () => svc.RetryPushNowAsync();
         await push.Should().ThrowAsync<Exception>();
-        svc.Status.Should().Be(GitSyncStatus.Error);
+        svc.Status.Should().Be(GitSyncStatus.RemoteUnavailable);
 
         using (var repo = new Repository(local))
             repo.Network.Remotes.Update("origin", r => r.Url = remote);
@@ -357,7 +373,7 @@ public sealed class GitServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RetryPush_ExhaustedQueue_FaultsWithoutDiscardingChanges()
+    public async Task RetryPush_ExhaustedQueue_ManualRetryRecovers()
     {
         var (_, local) = SetupRemoteAndClone();
         var queuePath = Path.Combine(_root, "exhausted-queue.json");
@@ -368,9 +384,9 @@ public sealed class GitServiceTests : IDisposable
             queue.Enqueue(new PushQueueStore.PushEntry { CommitSha = repo.Head.Tip.Sha, AttemptCount = 5 });
 
         var push = () => svc.RetryPushNowAsync();
-        await push.Should().ThrowAsync<InvalidOperationException>();
-        svc.Status.Should().Be(GitSyncStatus.Error);
-        new PushQueueStore(queuePath).Pending.Should().ContainSingle(e => e.AttemptCount == 5);
+        await push.Should().NotThrowAsync();
+        svc.Status.Should().Be(GitSyncStatus.Idle);
+        new PushQueueStore(queuePath).Pending.Should().BeEmpty();
     }
 
     [Fact]
@@ -382,6 +398,124 @@ public sealed class GitServiceTests : IDisposable
         svc.Status.Should().Be(GitSyncStatus.Error);
     }
 
+    [Fact]
+    public async Task EmptyRemote_FirstPushTracksThenSecondClientPulls()
+    {
+        var remote = Path.Combine(_root, "empty-roundtrip");
+        Repository.Init(remote, true);
+        var local = Path.Combine(_root, "first-roundtrip");
+        using var service = new GitService(local, _clock, _dialog, PushQueueStore.ForRepository(_root, local, remote), remote);
+        await service.InitOrOpenAsync();
+        File.WriteAllText(Path.Combine(local, "first.md"), "First");
+        await service.CommitAndQueuePushAsync("first");
+        await service.RetryPushNowAsync();
+        using (var repo = new Repository(local)) repo.Head.IsTracking.Should().BeTrue();
+        var second = Path.Combine(_root, "second-roundtrip");
+        Repository.Clone(remote, second);
+        using var other = new GitService(second, _clock, _dialog, PushQueueStore.ForRepository(_root, second, remote), remote);
+        await other.InitOrOpenAsync();
+        File.WriteAllText(Path.Combine(second, "second.md"), "Second");
+        await other.CommitAndQueuePushAsync("second");
+        await other.RetryPushNowAsync();
+        await service.PullNowAsync();
+        File.ReadAllText(Path.Combine(local, "second.md")).Should().Be("Second");
+    }
+
+    [Fact]
+    public async Task MissingQueue_AheadCommitRecoveredOnStartup()
+    {
+        var (remote, local) = SetupRemoteAndClone();
+        using (var repo = new Repository(local))
+        {
+            File.WriteAllText(Path.Combine(local, "recover.md"), "Recovered");
+            repo.Index.Add("recover.md"); repo.Index.Write();
+            repo.Commit("interrupted", new Signature("Test", "test@local", _clock.UtcNow), new Signature("Test", "test@local", _clock.UtcNow));
+        }
+        using var service = BuildService(local);
+        await service.InitOrOpenAsync();
+        using var remoteRepo = new Repository(remote);
+        remoteRepo.Head.Tip["recover.md"].Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ClosedService_OperationsFailWithoutHanging()
+    {
+        var service = BuildService(SetupRepoWithInitialCommit());
+        await service.InitOrOpenAsync();
+        await service.DisposeAsync();
+        var call = () => service.CommitAndQueuePushAsync("closed").WaitAsync(TimeSpan.FromSeconds(1));
+        await call.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task FailedClone_LocalWorkAndRemoteConflictArePreserved(bool? choice)
+    {
+        var local = SetupRepoWithInitialCommit();
+        var (remote, _) = SetupRemoteAndClone();
+        using (var repo = new Repository(local)) repo.Network.Remotes.Add("origin", remote);
+        File.WriteAllText(Path.Combine(local, "README.md"), "Local library");
+        File.WriteAllText(Path.Combine(local, "local.md"), "Only local");
+        _dialog.ImportChoice = choice;
+        using var service = BuildService(local);
+        await service.InitOrOpenAsync();
+        if (choice is null)
+        {
+            var pull = () => service.PullNowAsync();
+            await pull.Should().ThrowAsync<InvalidOperationException>();
+            File.ReadAllText(Path.Combine(local, "README.md")).Should().Be("Local library");
+        }
+        else
+        {
+            await service.PullNowAsync();
+            File.ReadAllText(Path.Combine(local, "README.md")).Should().Be(choice.Value ? "Local library" : "# Snippets");
+            File.ReadAllText(Path.Combine(local, "local.md")).Should().Be("Only local");
+            File.Exists(Path.Combine(local, ".local", "conflicts", "README.md.local")).Should().BeTrue();
+            File.Exists(Path.Combine(local, ".local", "conflicts", "README.md.remote")).Should().BeTrue();
+            await service.RetryPushNowAsync();
+            using var remoteRepo = new Repository(remote);
+            remoteRepo.Head.Tip["local.md"].Should().NotBeNull();
+        }
+    }
+
+    [Fact]
+    public async Task Recovery_ConcurrentSaveAndDeleteAreAppliedToPublishedLibrary()
+    {
+        var local = SetupRepoWithInitialCommit();
+        var (remote, _) = SetupRemoteAndClone();
+        using (var repo = new Repository(local)) repo.Network.Remotes.Add("origin", remote);
+        File.WriteAllText(Path.Combine(local, "README.md"), "Local library");
+        File.WriteAllText(Path.Combine(local, "remove.md"), "Delete during recovery");
+        using var usage = new UsageStore(Path.Combine(_root, "lease-usage.json"), _clock);
+        await using var snippets = new SnippetRepository(local, usage, _clock);
+        await snippets.LoadAllAsync();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _dialog.ImportHandler = async _ => { entered.TrySetResult(); await release.Task; return true; };
+        await using var service = new GitService(local, _clock, _dialog,
+            new PushQueueStore(Path.Combine(_root, "lease-queue.json")), fileGate: snippets.FileGate);
+        await service.InitOrOpenAsync();
+        var pull = service.PullNowAsync();
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(20));
+            var save = snippets.SaveAsync(new Snippet("late", "Late save", [], "LATE BODY", [], _clock.UtcNow, _clock.UtcNow));
+            var delete = snippets.DeleteAsync("remove");
+            await Task.WhenAny(save, Task.Delay(100));
+            save.IsCompleted.Should().BeFalse("the publication lease must serialize repository writes");
+            release.TrySetResult();
+            await pull;
+            await save;
+            await delete;
+            await snippets.LoadAllAsync();
+            File.ReadAllText(Path.Combine(local, "late.md")).Should().Contain("LATE BODY");
+            File.Exists(Path.Combine(local, "remove.md")).Should().BeFalse();
+            snippets.Get("late")!.Body.Should().Be("LATE BODY");
+        }
+        finally { release.TrySetResult(); }
+    }
     private GitService BuildService(string repoPath, PushQueueStore? pushQueue = null)
     {
         var queuePath = pushQueue is not null ? null : Path.Combine(_root, $"pq-{Guid.NewGuid():N}.json");
@@ -447,6 +581,9 @@ public sealed class GitServiceTests : IDisposable
 
 internal sealed class FakeDialogService : IDialogService
 {
+    public bool? ImportChoice { get; set; }
+    public Func<IReadOnlyList<string>, Task<bool?>>? ImportHandler { get; set; }
+    public Task<bool?> ConfirmImportConflictsAsync(IReadOnlyList<string> paths) => ImportHandler?.Invoke(paths) ?? Task.FromResult(ImportChoice);
     public List<IReadOnlyList<string>> ConflictNotifications { get; } = [];
 
     public Task<Dictionary<string, string>?> ShowPlaceholderFillAsync(IReadOnlyList<Placeholder> placeholders)

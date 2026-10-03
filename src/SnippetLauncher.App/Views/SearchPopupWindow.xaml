@@ -133,6 +133,9 @@
 
             <!-- Empty / no-match states -->
             <StackPanel Grid.Row="2" Margin="12,4,12,12">
+                <TextBlock Text="{Binding SearchStatus}" FontSize="12" Foreground="#99FFFFFF"
+                           HorizontalAlignment="Center"
+                           Visibility="{Binding SearchStatus.Length, Converter={StaticResource LenToVis}}"/>
                 <TextBlock Text="Geen snippets gevonden — bibliotheek is leeg."
                            FontSize="13" Foreground="#66FFFFFF"
                            HorizontalAlignment="Center" Margin="0,4"

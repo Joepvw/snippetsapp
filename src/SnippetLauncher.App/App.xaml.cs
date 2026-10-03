@@ -53,11 +53,16 @@ public partial class App : Application
     private MenuItem? _trayUpdateItem;
     private SearchPopupWindow? _popup;
     private EditorWindow? _editor;
+    private EditorViewModel? _editorVm;
     private SettingsWindow? _settingsWindow;
     private GitService? _gitService;
     private SnippetRepository? _activeRepository;
     private UpdateNotificationService? _updateNotifier;
     private UpdateCheckResult? _pendingUpdate;
+    private readonly SemaphoreSlim _syncGate = new(1, 1);
+    private bool _exiting;
+    private EventHandler<SnippetChangedEventArgs>? _snippetSaved;
+    private EventHandler<SnippetRemovedEventArgs>? _snippetDeleted;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -101,7 +106,14 @@ public partial class App : Application
         }
 
         // ── Settings (must come before DI so first-run can set snippets dir) ─
-        var settingsSvc = new SettingsService(AppDataDir);
+        SettingsService settingsSvc;
+        try { settingsSvc = new SettingsService(AppDataDir); }
+        catch (InvalidDataException error)
+        {
+            MessageBox.Show(error.Message, "Instellingen herstellen", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
 
         // ── First-run wizard ─────────────────────────────────────────────────
         if (settingsSvc.IsFirstRun)
@@ -138,11 +150,11 @@ public partial class App : Application
         var popupVm = _services.GetRequiredService<SearchPopupViewModel>();
         _popup.Bind(popupVm);
 
-        _editor = new EditorWindow(_services.GetRequiredService<EditorViewModel>());
-
         var settingsVm = _services.GetRequiredService<SettingsViewModel>();
-        settingsVm.RepoPathChanged += OnRepoPathChanged;
-        settingsVm.RemoteUrlChanged += OnRemoteUrlChanged;
+        settingsVm.RemoteUrlChangedAction = RebuildGitServiceAsync;
+        settingsVm.AuthenticateAction = AuthenticateAsync;
+        settingsVm.PullIntervalChangedAction = seconds =>
+            _gitService?.StartAutoSync(seconds, () => _editorVm?.IsDirty == true);
         settingsVm.SyncAction = SyncNowAsync;
         _settingsWindow = new SettingsWindow(settingsVm);
 
@@ -152,21 +164,23 @@ public partial class App : Application
 
         bus.Subscribe<OpenSearchCommand>(_ =>
         {
-            Dispatcher.Invoke(() => _popup.ShowAndActivate());
+            Dispatcher.Invoke(() => { if (!_exiting) _popup.ShowAndActivate(); });
             return Task.CompletedTask;
         });
 
         bus.Subscribe<QuickAddCommand>(async _ =>
         {
+            if (_exiting) return;
             var text = await clipboard.GetTextAsync();
-            Dispatcher.Invoke(() => _editor!.OpenForQuickAdd(text));
+            if (_exiting) return;
+            await GetEditor().OpenForQuickAddAsync(text);
         });
 
-        popupVm.CreateSnippetRequested += (_, title) =>
+        popupVm.CreateSnippetRequested += async (_, title) =>
         {
-            _popup!.Visibility = Visibility.Collapsed;
-            _editor!.OpenForQuickAdd(null);
-            _services!.GetRequiredService<EditorViewModel>().EditTitle = title;
+            if (_exiting) return;
+            _popup!.ClosePopup();
+            if (await GetEditor().OpenForQuickAddAsync(null)) _editorVm!.EditTitle = title;
         };
 
         // ── Hotkeys ──────────────────────────────────────────────────────────
@@ -179,10 +193,7 @@ public partial class App : Application
         // ── Repository load ──────────────────────────────────────────────────
         var snippetRepo = _services.GetRequiredService<SnippetRepository>();
         _activeRepository = snippetRepo;
-        _ = snippetRepo.LoadAllAsync();
-
-        // ── Git sync ─────────────────────────────────────────────────────────
-        _gitService = BuildGitService(settingsSvc, snippetRepo);
+        _ = InitializeLibraryAsync(settingsSvc, snippetRepo);
 
         // ── IPC server ───────────────────────────────────────────────────────
         _ = StartIpcServerAsync();
@@ -193,7 +204,37 @@ public partial class App : Application
             Dispatcher.BeginInvoke(() => ShowUpdateAvailable(result));
         _updateNotifier.Start();
 
-        Log.Information("Snippet Launcher started — snippets dir: {Dir}", settingsSvc.Current.SnippetsDirectory);
+        Log.Information("Snippet Launcher ready for local input");
+    }
+
+    private EditorWindow GetEditor()
+    {
+        if (_editor is not null) return _editor;
+        _editorVm = _services!.GetRequiredService<EditorViewModel>();
+        return _editor = new EditorWindow(_editorVm);
+    }
+
+    private async Task InitializeLibraryAsync(SettingsService settings, SnippetRepository repository)
+    {
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            await repository.LoadAllAsync();
+            Log.Information("Local library ready in {Milliseconds} ms; {Count} snippets", watch.ElapsedMilliseconds, repository.GetAll().Count);
+            await _syncGate.WaitAsync();
+            try
+            {
+                if (_exiting || _gitService is not null) return;
+                _gitService = BuildGitService(settings, repository);
+                await _gitService.InitOrOpenAsync();
+                await repository.LoadAllAsync(); // A clone may have populated files after the first scan.
+            }
+            finally { _syncGate.Release(); }
+        }
+        catch (Exception)
+        {
+            Log.Warning("Library initialization or background sync needs attention; local files preserved");
+        }
     }
 
     private void ShowUpdateAvailable(UpdateCheckResult result)
@@ -275,7 +316,6 @@ public partial class App : Application
         services.AddSingleton(sp => new SettingsViewModel(
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<IGlobalHotkeyService>(),
-            sp.GetRequiredService<SnippetRepository>(),
             sp.GetRequiredService<WindowsStartupService>()));
 
         // ── Update checker ────────────────────────────────────────────────────
@@ -297,17 +337,17 @@ public partial class App : Application
 
     private GitService BuildGitService(SettingsService settingsSvc, SnippetRepository snippetRepo)
     {
-        var pushQueuePath = Path.Combine(AppDataDir, "push-queue.json");
         var gitSvc = new GitService(
             settingsSvc.Current.SnippetsDirectory,
             _services!.GetRequiredService<IClock>(),
             _services!.GetRequiredService<IDialogService>(),
-            new PushQueueStore(pushQueuePath),
-            settingsSvc.Current.RemoteUrl);
+            PushQueueStore.ForRepository(AppDataDir, settingsSvc.Current.SnippetsDirectory, settingsSvc.Current.RemoteUrl),
+            settingsSvc.Current.RemoteUrl, fileGate: snippetRepo.FileGate);
 
         // Update tray tooltip on status change
-        gitSvc.StatusChanged += (_, status) => Dispatcher.Invoke(() =>
+        gitSvc.StatusChanged += (_, status) => Dispatcher.BeginInvoke(() =>
         {
+            if (_exiting || !ReferenceEquals(_gitService, gitSvc) || _trayIcon is null) return;
             _trayIcon!.ToolTipText = status switch
             {
                 GitSyncStatus.Syncing => $"Snippet Launcher {AppVersion} — Synchroniseren…",
@@ -315,6 +355,8 @@ public partial class App : Application
                 GitSyncStatus.Conflict => $"Snippet Launcher {AppVersion} — Conflict opgelost",
                 GitSyncStatus.Error => $"Snippet Launcher {AppVersion} — Sync fout (klik rechts voor opties)",
                 GitSyncStatus.NoRemote => $"Snippet Launcher {AppVersion} — Geen remote geconfigureerd",
+                GitSyncStatus.AuthenticationRequired => $"Snippet Launcher {AppVersion} — Aanmelden nodig (Instellingen)",
+                GitSyncStatus.RemoteUnavailable => $"Snippet Launcher {AppVersion} — Controleer account, remote en rechten",
                 _ => $"Snippet Launcher {AppVersion}",
             };
             if (_trayRetryItem is not null)
@@ -322,60 +364,65 @@ public partial class App : Application
         });
 
         // Commit + push whenever a snippet is saved or deleted
-        snippetRepo.SnippetChanged += (_, e) =>
-            _ = gitSvc.CommitAndQueuePushAsync($"snippets: update {e.Snippet.Id}");
-        snippetRepo.SnippetRemoved += (_, e) =>
-            _ = gitSvc.CommitAndQueuePushAsync($"snippets: remove {e.Id}");
+        _snippetSaved = (_, e) => _ = ObserveGitTaskAsync(gitSvc.CommitAndQueuePushAsync($"snippets: update {e.Snippet.Id}"));
+        _snippetDeleted = (_, e) => _ = ObserveGitTaskAsync(gitSvc.CommitAndQueuePushAsync($"snippets: remove {e.Id}"));
+        snippetRepo.SnippetChanged += _snippetSaved;
+        snippetRepo.SnippetRemoved += _snippetDeleted;
 
         // Start background sync
-        var editorVm = _services!.GetRequiredService<EditorViewModel>();
-        gitSvc.StartAutoSync(settingsSvc.Current.PullIntervalSeconds, () => editorVm.IsDirty);
-        _ = gitSvc.InitOrOpenAsync();
+        gitSvc.StartAutoSync(settingsSvc.Current.PullIntervalSeconds, () => _editorVm?.IsDirty == true);
 
         return gitSvc;
     }
 
-    private void OnRepoPathChanged(object? sender, string newPath)
+    private static async Task ObserveGitTaskAsync(Task task)
     {
-        Dispatcher.Invoke(async () =>
-        {
-            Directory.CreateDirectory(newPath);
-
-            // Drain old git service
-            _gitService?.Dispose();
-
-            var newRepo = new SnippetRepository(
-                newPath,
-                _services!.GetRequiredService<UsageStore>(),
-                _services!.GetRequiredService<IClock>());
-            await newRepo.LoadAllAsync();
-
-            var settingsSvc = _services!.GetRequiredService<SettingsService>();
-            _activeRepository = newRepo;
-            _gitService = BuildGitService(settingsSvc, newRepo);
-
-            Log.Information("Repository reloaded at {Path}", newPath);
-        });
+        try { await task; }
+        catch (Exception) { Log.Warning("A sync operation failed; local changes preserved"); }
     }
 
-    private void OnRemoteUrlChanged(object? sender, EventArgs e)
+    private async Task RebuildGitServiceAsync()
     {
-        Dispatcher.Invoke(() =>
+        await _syncGate.WaitAsync();
+        try
         {
-            if (_activeRepository is null) return;
-            _gitService?.Dispose();
+            if (_activeRepository is null || _exiting) return;
+            if (_snippetSaved is not null) _activeRepository.SnippetChanged -= _snippetSaved;
+            if (_snippetDeleted is not null) _activeRepository.SnippetRemoved -= _snippetDeleted;
+            if (_gitService is not null) await _gitService.DisposeAsync();
+            if (_exiting) return;
             var settingsSvc = _services!.GetRequiredService<SettingsService>();
             _gitService = BuildGitService(settingsSvc, _activeRepository);
-            Log.Information("GitService rebuilt for new remote URL");
-        });
+            await _gitService.InitOrOpenAsync();
+            await _activeRepository.LoadAllAsync();
+        }
+        finally { _syncGate.Release(); }
+    }
+
+    private async Task AuthenticateAsync()
+    {
+        if (!await _syncGate.WaitAsync(0)) throw new InvalidOperationException("Er loopt al een synchronisatieactie.");
+        try
+        {
+            if (_gitService is null || _exiting) throw new InvalidOperationException("Synchronisatie is nog niet beschikbaar.");
+            await _gitService.AuthenticateAsync();
+            if (_activeRepository is not null) await _activeRepository.LoadAllAsync();
+        }
+        finally { _syncGate.Release(); }
     }
 
     private async Task SyncNowAsync()
     {
-        var svc = _gitService;
-        if (svc is null) throw new InvalidOperationException("Synchronisatie is niet beschikbaar.");
-        await svc.PullNowAsync();
-        await svc.RetryPushNowAsync();
+        if (!await _syncGate.WaitAsync(0)) throw new InvalidOperationException("Er loopt al een synchronisatieactie.");
+        try
+        {
+            var svc = _gitService;
+            if (svc is null || _exiting) throw new InvalidOperationException("Synchronisatie is niet beschikbaar.");
+            await svc.PullNowAsync();
+            await svc.RetryPushNowAsync();
+            if (_activeRepository is not null) await _activeRepository.LoadAllAsync();
+        }
+        finally { _syncGate.Release(); }
     }
 
     private TaskbarIcon BuildTrayIcon()
@@ -403,17 +450,17 @@ public partial class App : Application
         menu.Items.Add(searchItem);
 
         var editorItem = new MenuItem { Header = "Snippets beheren…" };
-        editorItem.Click += (_, _) => { _editor?.Show(); _editor?.Activate(); };
+        editorItem.Click += (_, _) => { if (_exiting) return; var editor = GetEditor(); editor.Show(); editor.Activate(); };
         menu.Items.Add(editorItem);
 
         menu.Items.Add(new Separator());
 
         var syncItem = new MenuItem { Header = "Nu synchroniseren" };
-        syncItem.Click += (_, _) => _ = SyncNowAsync();
+        syncItem.Click += (_, _) => _ = ObserveGitTaskAsync(SyncNowAsync());
         menu.Items.Add(syncItem);
 
         _trayRetryItem = new MenuItem { Header = "Push opnieuw proberen", IsEnabled = false };
-        _trayRetryItem.Click += (_, _) => _ = _gitService?.RetryPushNowAsync();
+        _trayRetryItem.Click += (_, _) => { if (_gitService is not null) _ = ObserveGitTaskAsync(_gitService.RetryPushNowAsync()); };
         menu.Items.Add(_trayRetryItem);
 
         menu.Items.Add(new Separator());
@@ -425,7 +472,7 @@ public partial class App : Application
         menu.Items.Add(new Separator());
 
         var exitItem = new MenuItem { Header = "Afsluiten" };
-        exitItem.Click += (_, _) => Shutdown();
+        exitItem.Click += (_, _) => _ = RequestExitAsync();
         menu.Items.Add(exitItem);
 
         icon.ContextMenu = menu;
@@ -491,27 +538,81 @@ public partial class App : Application
             MessageBoxImage.Error);
     }
 
+    private async Task RequestExitAsync()
+    {
+        if (_exiting) return;
+        if (_editorVm is not null && !await _editorVm.PrepareForExitAsync()) return;
+        _exiting = true;
+        if (_editor is not null) _editor.IsEnabled = false;
+        if (_settingsWindow is not null) _settingsWindow.IsEnabled = false;
+        try
+        {
+            _services?.GetService<IGlobalHotkeyService>()?.Dispose();
+            _popup?.ClosePopup();
+            var git = _gitService;
+            git?.StopAutoSyncAndCancelNetwork();
+            await ShutdownDrain.RunAsync(_activeRepository?.DrainAsync() ?? Task.CompletedTask,
+                git is null ? null : () => git.CommitAndQueuePushAsync("snippets: preserve final local changes"),
+                TimeSpan.FromSeconds(15));
+            if (git is not null)
+            {
+                await git.DisposeAsync();
+                if (ReferenceEquals(_gitService, git)) _gitService = null;
+            }
+            if (_activeRepository is not null) await _activeRepository.DisposeAsync();
+            _editorVm?.Dispose();
+            if (_services is not null) await _services.DisposeAsync();
+            _updateNotifier = null;
+            _services = null;
+            Shutdown();
+        }
+        catch (Exception)
+        {
+            Log.Error("Shutdown could not finish cleanly; local data preserved for recovery");
+            MessageBox.Show("Afsluiten kon niet volledig worden afgerond. De app sluit nu af; je opgeslagen bestanden blijven bewaard en lokale wijzigingen worden bij de volgende start hersteld.",
+                "Afsluiten", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Shutdown();
+        }
+    }
+
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        if (!_exiting)
+        {
+            e.Cancel = true;
+            _ = RequestExitAsync();
+        }
+        base.OnSessionEnding(e);
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Information("Snippet Launcher exiting");
-        // Drain the update notifier first so an in-flight HTTP call is cancelled
-        // before we tear down its dependencies.
-        if (_updateNotifier is not null)
+        // Normal and emergency exits already used bounded async shutdown. Never
+        // repeat an unbounded repository drain while the process is exiting.
+        if (!_exiting)
         {
-            try { _updateNotifier.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
-            catch (Exception ex) { Log.Warning(ex, "Update notifier dispose failed"); }
+            if (_updateNotifier is not null)
+            {
+                try { _updateNotifier.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+                catch (Exception) { Log.Warning("Update notifier dispose failed"); }
+            }
+            _services?.GetService<IGlobalHotkeyService>()?.Dispose();
+            _activeRepository?.Dispose();
+            try { _gitService?.Dispose(); }
+            catch (Exception) { Log.Warning("Git worker could not stop before process exit; local files retained"); }
         }
-        _services?.GetService<IGlobalHotkeyService>()?.Dispose();
-        _services?.GetService<SnippetRepository>()?.Dispose();
-        _gitService?.Dispose();
         _trayIcon?.Dispose();
-        _services?.Dispose();
-        if (_ownsMutex && _mutex is not null)
+        // Normal exit drained and asynchronously disposed the provider before Shutdown.
+        // A timed-out worker may still be alive. Keep ownership until the OS
+        // terminates this process, preventing a replacement app from starting early.
+        var keepMutexUntilProcessExit = _exiting && _gitService is not null;
+        if (!keepMutexUntilProcessExit && _ownsMutex && _mutex is not null)
         {
             try { _mutex.ReleaseMutex(); }
             catch (ApplicationException) { /* mutex held on a different thread — let Dispose clean it up */ }
         }
-        _mutex?.Dispose();
+        if (!keepMutexUntilProcessExit) _mutex?.Dispose();
         Log.CloseAndFlush();
         base.OnExit(e);
     }

@@ -66,7 +66,7 @@ Headless, no `System.Windows.*`, fully xUnit-testable. Enforced by `tests/Snippe
 - **`Abstractions/`** — interfaces that act as DI seams. Anything Core needs from the OS or UI goes through one of these. Don't `new` concrete types in Core code; inject the interface.
 - **`Domain/`** — `Snippet` (record), `Placeholder`, `SnippetUsage`. Immutable, serializable, no behavior.
 - **`Storage/`** — `SnippetRepository` (single-writer via `Channel<Op>`), `SnippetSerializer` (YAML frontmatter + body), `UsageStore` (debounced flush of stats), `SlugHelper`. Real filesystem; no in-memory abstraction.
-- **`Search/`** — `SearchService` builds an in-memory weighted index (60% title / 30% tags / 10% body) with recency + frequency boost. Recomputed on `SnippetChanged`.
+- **`Search/`** — `SearchService` builds an in-memory weighted index (60% title / 30% tags / 10% body) with recency + frequency boost. Prepared per immutable library snapshot; queries run in the background with cancellation and generation checks.
 - **`Placeholders/`** — `PlaceholderEngine` resolves `{date}`, `{time}`, `{clipboard}`, custom tokens. `{{` escapes a literal brace.
 - **`Sync/`** — `GitService` runs **all** LibGit2Sharp calls on one dedicated worker thread fed by a `Channel`. `PushQueueStore` persists pending pushes to disk so offline restarts don't lose work. Last-writer-wins conflict resolution; backups land in `<snippets-dir>/.local/conflicts/`.
 - **`Commands/`** + **`Infrastructure/`** — `ICommandBus` with in-process implementation. Commands like `OpenSearchCommand`, `QuickAddCommand` are how the UI tells Core to do things without VMs needing to know about each other.
@@ -90,7 +90,7 @@ Composition root, UI, and platform-specific service implementations.
 
 1. User presses global hotkey → `WM_HOTKEY` → `GlobalHotkeyService` raises event.
 2. App applies the ALT-trick foreground workaround if needed, shows `SearchPopupWindow`.
-3. User types → `SearchPopupViewModel` debounces 150 ms → calls `SearchService.Search(query)`.
+3. User types → `SearchPopupViewModel` debounces 75 ms → calls `SearchService.Query(query, cancellationToken: ...)` in the background.
 4. User picks result + Enter → `PlaceholderEngine.Resolve(snippet)`. If unfilled tokens, show `PlaceholderFillDialog`.
 5. Final text → `IClipboardService.SetText` → close popup → user pastes manually (Ctrl+V into the previously-focused app).
 6. `UsageStore` records the pick (debounced flush to `usage.json`); `SearchService` index gets a recency/frequency bump.
@@ -109,7 +109,7 @@ Composition root, UI, and platform-specific service implementations.
 |---|---|
 | `%APPDATA%/SnippetLauncher/settings.json` | App settings (hotkey, snippets dir, sync prefs) |
 | `%APPDATA%/SnippetLauncher/usage.json` | Per-snippet pick counts and last-used timestamps |
-| `%APPDATA%/SnippetLauncher/push-queue.json` | Persisted pending git pushes (offline-safe) |
+| `%APPDATA%/SnippetLauncher/push-queue-<hash>.json` | Pending pushes scoped to active repository and remote; corrupt queues retained |
 | `%APPDATA%/SnippetLauncher/log/app.log` | Serilog rolling daily, debug level |
 | `<snippets-dir>/*.md` | User snippets (each = YAML frontmatter + markdown body) |
 | `<snippets-dir>/.git/` | The sync git repo |
@@ -129,3 +129,13 @@ The `<snippets-dir>` defaults to `%APPDATA%/SnippetLauncher/snippets/` but most 
 - Not a "why we made this decision" log. Those live in [docs/solutions/](solutions/).
 - Not a fix-it guide. Those live in [docs/runbooks/](runbooks/).
 - Not exhaustive — when you add a new top-level concept, update the diagram and the relevant layer paragraph.
+
+## Startup, snapshots and lifecycle (2026-10-03)
+
+The editor is created on first use. Local loading publishes one immutable snapshot through `LibraryChanged`; external changes refresh readers but do not manufacture local Git commit events. Search prepares strings once per snapshot. Only the current query generation may replace results or execute Enter; closing the popup cancels pending work and late focus callbacks.
+
+An editor keeps its draft across snapshot changes. Save/discard/cancel guards protect selection, New, Quick Add and exit. Placeholder edits and body-only drafts count as unsaved work. The active snippets directory remains fixed for the session; `PendingSnippetsDirectory` applies only on next settings load.
+
+Git operations stay on one dedicated channel worker. Silent credential lookup is bounded and never permits interaction; explicit Authenticate enables the interactive helper. Credentials are approved after verified remote operations. Queue state is scoped to repository and remote, with atomic persistence and recovery from local commits. First-clone recovery stages another clone, preserves the old library, asks how to resolve overlapping content, and then re-arms the file watcher on the active directory.
+
+Shutdown drains accepted local saves before the final local commit and Git worker disposal. Network cancellation does not discard local history. Reconfiguration unsubscribes old commit handlers and waits for the old worker before opening another. The host owns UsageStore. Settings and usage write atomically and retain recovery data; usage flush versioning protects edits during writes.

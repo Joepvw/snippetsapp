@@ -91,6 +91,106 @@ public sealed class SnippetRepositoryTests : IDisposable
         _repo.GetUsage("stat-test").UsageCount.Should().Be(2);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    [InlineData(1000)]
+    [InlineData(5000)]
+    public async Task BulkLoad_PublishesOnceWithoutLocalMutations(int count)
+    {
+        for (var i = 0; i < count; i++)
+            File.WriteAllText(Path.Combine(_tempDir, $"{i}.md"), SnippetSerializer.Serialize(MakeSnippet($"{i}", "Title")));
+        var batches = 0;
+        var local = 0;
+        _repo.LibraryChanged += (_, _) => batches++;
+        _repo.SnippetChanged += (_, _) => local++;
+        await _repo.LoadAllAsync();
+        _repo.GetAll().Should().HaveCount(count);
+        batches.Should().Be(1);
+        local.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Dispose_DrainsAcceptedSaveAndRejectsNewSave()
+    {
+        var save = _repo.SaveAsync(MakeSnippet("shutdown", "Shutdown"));
+        await _repo.DisposeAsync();
+        (await save).Id.Should().Be("shutdown");
+        var rejected = () => _repo.SaveAsync(MakeSnippet("later", "Later"));
+        await rejected.Should().ThrowAsync<Exception>();
+        _usage.RecordUse("host-owned");
+    }
+
+    [Fact]
+    public async Task Snapshot_RemainsStableDuringWrites()
+    {
+        await _repo.SaveAsync(MakeSnippet("one", "One"));
+        var snapshot = _repo.GetAll();
+        await Task.WhenAll(Enumerable.Range(0, 100).Select(i => _repo.SaveAsync(MakeSnippet($"new-{i}", "New"))));
+        snapshot.Should().ContainSingle();
+        _repo.GetAll().Should().HaveCount(101);
+    }
+
+    [Fact]
+    public async Task FileCreatedAtScanCompletion_IsObservedWithoutLocalMutation()
+    {
+        var observed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var local = 0;
+        var created = false;
+        _repo.SnippetChanged += (_, _) => Interlocked.Increment(ref local);
+        _repo.LibraryChanged += (_, _) =>
+        {
+            if (!created)
+            {
+                created = true;
+                File.WriteAllText(Path.Combine(_tempDir, "clone.md"), SnippetSerializer.Serialize(MakeSnippet("clone", "Clone")));
+            }
+            else if (_repo.Get("clone") is not null) observed.TrySetResult();
+        };
+        await _repo.LoadAllAsync();
+        await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        local.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task UnreadableExternalFile_DoesNotPreventNextSave()
+    {
+        await _repo.LoadAllAsync();
+        var path = Path.Combine(_tempDir, "locked.md");
+        using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await Task.Delay(700);
+            await _repo.SaveAsync(MakeSnippet("healthy", "Healthy")).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        _repo.Get("healthy").Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Reload_AfterDirectoryReplacement_WatchesActiveDirectory()
+    {
+        await _repo.LoadAllAsync();
+        var preserved = _tempDir + ".preserved";
+        try
+        {
+            Directory.Move(_tempDir, preserved);
+            Directory.CreateDirectory(_tempDir);
+            await _repo.LoadAllAsync();
+            var observed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _repo.LibraryChanged += (_, _) =>
+            {
+                if (_repo.Get("replacement") is not null) observed.TrySetResult();
+            };
+            File.WriteAllText(Path.Combine(_tempDir, "replacement.md"),
+                SnippetSerializer.Serialize(MakeSnippet("replacement", "Replacement")));
+            await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            _repo.Get("replacement").Should().NotBeNull();
+        }
+        finally
+        {
+            if (Directory.Exists(preserved)) Directory.Delete(preserved, true);
+        }
+    }
+
     private static Snippet MakeSnippet(string id, string title) => new(
         id, title, ["test"], $"Body of {title}", [],
         DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
@@ -98,6 +198,7 @@ public sealed class SnippetRepositoryTests : IDisposable
     public void Dispose()
     {
         _repo.Dispose();
+        _usage.Dispose();
         try { Directory.Delete(_tempDir, recursive: true); } catch { }
     }
 }

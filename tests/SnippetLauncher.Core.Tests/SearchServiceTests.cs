@@ -11,12 +11,14 @@ public sealed class SearchServiceTests : IDisposable
     private readonly FakeClock _clock = new(new DateTimeOffset(2026, 4, 28, 10, 0, 0, TimeSpan.Zero));
     private readonly SnippetRepository _repo;
     private readonly SearchService _search;
+    private readonly UsageStore _usage;
 
     public SearchServiceTests()
     {
         Directory.CreateDirectory(_tempDir);
         var statsPath = Path.Combine(_tempDir, ".local", "usage.json");
-        _repo = new SnippetRepository(_tempDir, new UsageStore(statsPath, _clock), _clock);
+        _usage = new UsageStore(statsPath, _clock);
+        _repo = new SnippetRepository(_tempDir, _usage, _clock);
         _search = new SearchService(_repo, _clock);
     }
 
@@ -89,6 +91,27 @@ public sealed class SearchServiceTests : IDisposable
         taggedScore.Should().BeGreaterThan(bodyScore);
     }
 
+    [Fact]
+    public async Task Query_CancellationStopsAnObsoleteSearch()
+    {
+        await _repo.SaveAsync(Snippet("one", "One"));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var query = () => _search.Query("one", cancellationToken: cancellation.Token);
+        query.Should().Throw<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task Query_PreparedIndexRefreshesAfterEditAndDelete()
+    {
+        await _repo.SaveAsync(Snippet("one", "Original"));
+        _search.Query("original").Should().ContainSingle();
+        await _repo.SaveAsync(Snippet("one", "Changed"));
+        _search.Query("changed").Should().ContainSingle();
+        await _repo.DeleteAsync("one");
+        _search.Query("changed").Should().BeEmpty();
+    }
+
     private static Snippet Snippet(string id, string title) => new(
         id, title, [], $"Body for {title}", [],
         DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
@@ -96,6 +119,7 @@ public sealed class SearchServiceTests : IDisposable
     public void Dispose()
     {
         _repo.Dispose();
+        _usage.Dispose();
         try { Directory.Delete(_tempDir, recursive: true); } catch { }
     }
 }

@@ -54,7 +54,7 @@
                                     Style="{StaticResource ApplyBtn}"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" Foreground="#888" FontSize="11" TextWrapping="Wrap">
-                            Wijzigen herlaadt de volledige snippet-bibliotheek. Push-queue wordt eerst geleegd.
+                            Een nieuwe map wordt na herstart actief. Tot die tijd blijven zoeken en opslaan in de huidige bibliotheek werken.
                         </TextBlock>
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="GitHub-remote"/>
@@ -77,11 +77,14 @@
                         </TextBlock>
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="Synchronisatie"/>
+                        <Button Content="Aanmelden bij GitHub / toegang herstellen"
+                                Command="{Binding AuthenticateCommand}"
+                                HorizontalAlignment="Left" Padding="14,6" Margin="0,0,0,6"/>
                         <Button Content="Nu synchroniseren (haal op + verstuur)"
                                 Command="{Binding SyncNowCommand}"
                                 HorizontalAlignment="Left" Padding="14,6"/>
                         <TextBlock Margin="0,4,0,0" Foreground="#888" FontSize="11" TextWrapping="Wrap">
-                            Forceer een directe pull en push. Handig na het instellen van de remote-URL.
+                            Haal op en verstuur met de bestaande aanmelding. Aanmelden gebeurt alleen via de knop hierboven.
                         </TextBlock>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink Command="{Binding OpenSyncHelpCommand}">Hulp bij synchronisatie en Git-aanmelding</Hyperlink>

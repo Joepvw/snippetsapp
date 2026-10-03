@@ -185,6 +185,17 @@ public sealed partial class FirstRunWizardViewModel : ObservableObject
             }
         }
 
+        if (CurrentStep == WizardStep.Remote)
+        {
+            try { RemoteUrlValidator.Validate(RemoteUrl ?? ""); }
+            catch (ArgumentException)
+            {
+                StatusMessage = "Gebruik een HTTPS-repository-URL zonder wachtwoord, token of queryparameters.";
+                HasError = true;
+                return false;
+            }
+        }
+
         return true;
     }
 

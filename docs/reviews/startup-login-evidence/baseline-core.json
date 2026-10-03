@@ -1,0 +1,110 @@
+[
+  {
+    "count": 0,
+    "repeat": 0,
+    "loadMs": 900.4876,
+    "listRefreshes": 0,
+    "listRefreshMs": 0,
+    "queryP50Ms": 0.0003,
+    "queryP95Ms": 0.017
+  },
+  {
+    "count": 0,
+    "repeat": 1,
+    "loadMs": 328.3737,
+    "listRefreshes": 0,
+    "listRefreshMs": 0,
+    "queryP50Ms": 0.0003,
+    "queryP95Ms": 0.0005
+  },
+  {
+    "count": 0,
+    "repeat": 2,
+    "loadMs": 42.413,
+    "listRefreshes": 0,
+    "listRefreshMs": 0,
+    "queryP50Ms": 0.0003,
+    "queryP95Ms": 0.0004
+  },
+  {
+    "count": 100,
+    "repeat": 0,
+    "loadMs": 14021.9228,
+    "listRefreshes": 100,
+    "listRefreshMs": 254.54050000000004,
+    "queryP50Ms": 170.762,
+    "queryP95Ms": 327.2331
+  },
+  {
+    "count": 100,
+    "repeat": 1,
+    "loadMs": 4532.0386,
+    "listRefreshes": 100,
+    "listRefreshMs": 214.71399999999994,
+    "queryP50Ms": 128.432,
+    "queryP95Ms": 229.4098
+  },
+  {
+    "count": 100,
+    "repeat": 2,
+    "loadMs": 3041.2296,
+    "listRefreshes": 100,
+    "listRefreshMs": 291.29029999999995,
+    "queryP50Ms": 127.9744,
+    "queryP95Ms": 305.0009
+  },
+  {
+    "count": 1000,
+    "repeat": 0,
+    "loadMs": 35743.8112,
+    "listRefreshes": 1000,
+    "listRefreshMs": 12624.286300000003,
+    "queryP50Ms": 136.5617,
+    "queryP95Ms": 633.15
+  },
+  {
+    "count": 1000,
+    "repeat": 1,
+    "loadMs": 13432.3284,
+    "listRefreshes": 1000,
+    "listRefreshMs": 4270.8204000000005,
+    "queryP50Ms": 36.375,
+    "queryP95Ms": 58.866
+  },
+  {
+    "count": 1000,
+    "repeat": 2,
+    "loadMs": 7187.0101,
+    "listRefreshes": 1000,
+    "listRefreshMs": 2936.093099999998,
+    "queryP50Ms": 125.6545,
+    "queryP95Ms": 224.5543
+  },
+  {
+    "count": 5000,
+    "repeat": 0,
+    "loadMs": 246029.3377,
+    "listRefreshes": 5000,
+    "listRefreshMs": 188240.4397999998,
+    "queryP50Ms": 783.2639,
+    "queryP95Ms": 1117.2993
+  },
+  {
+    "count": 5000,
+    "repeat": 1,
+    "loadMs": 213280.7958,
+    "listRefreshes": 5000,
+    "listRefreshMs": 154726.51419999977,
+    "queryP50Ms": 377.8388,
+    "queryP95Ms": 675.9287
+  },
+  {
+    "count": 5000,
+    "repeat": 2,
+    "loadMs": 196797.0935,
+    "listRefreshes": 5000,
+    "listRefreshMs": 151178.55440000005,
+    "queryP50Ms": 394.8811,
+    "queryP95Ms": 1121.5672
+  }
+]

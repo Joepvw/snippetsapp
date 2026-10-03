@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using SnippetLauncher.App.Services;
 using SnippetLauncher.Core.Abstractions;
 using SnippetLauncher.Core.Settings;
-using SnippetLauncher.Core.Storage;
+using SnippetLauncher.Core.Sync;
 
 namespace SnippetLauncher.App.ViewModels;
 
@@ -14,7 +14,6 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsService _settings;
     private readonly IGlobalHotkeyService _hotkey;
-    private readonly SnippetRepository _repository;
     private readonly WindowsStartupService _startupService;
     private bool _suppressStartAtLoginHandler;
     private bool _suppressUpdateCheckHandler;
@@ -43,15 +42,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Raised when the user saves repo-path changes — caller must reload the repository.
-    /// </summary>
-    public event EventHandler<string>? RepoPathChanged;
-
-    /// <summary>
     /// Raised when the user changes the Git remote URL — caller must rebuild the GitService
     /// so the new URL is applied (clone / origin update).
     /// </summary>
-    public event EventHandler? RemoteUrlChanged;
+    public Func<Task>? RemoteUrlChangedAction { get; set; }
+    public Func<Task>? AuthenticateAction { get; set; }
+    public Action<int>? PullIntervalChangedAction { get; set; }
 
     /// <summary>
     /// Set by the host (App) — invoked when the user clicks "Nu synchroniseren".
@@ -59,18 +55,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// </summary>
     public Func<Task>? SyncAction { get; set; }
 
-    public SettingsViewModel(SettingsService settings, IGlobalHotkeyService hotkey, SnippetRepository repository, WindowsStartupService startupService)
+    public SettingsViewModel(SettingsService settings, IGlobalHotkeyService hotkey, WindowsStartupService startupService)
     {
         _settings = settings;
         _hotkey = hotkey;
-        _repository = repository;
         _startupService = startupService;
         LoadFromSettings();
     }
 
     private void LoadFromSettings()
     {
-        RepoPath = _settings.Current.SnippetsDirectory;
+        RepoPath = _settings.Current.PendingSnippetsDirectory ?? _settings.Current.SnippetsDirectory;
         RemoteUrl = _settings.Current.RemoteUrl;
         SearchHotkey = _settings.Current.SearchHotkey;
         QuickAddHotkey = _settings.Current.QuickAddHotkey;
@@ -178,7 +173,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ApplyRepoPathAsync()
+    private void ApplyRepoPath()
     {
         var newPath = RepoPath.Trim();
         if (string.IsNullOrEmpty(newPath))
@@ -187,7 +182,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        if (newPath == _settings.Current.SnippetsDirectory)
+        if (newPath == _settings.Current.SnippetsDirectory && _settings.Current.PendingSnippetsDirectory is null)
         {
             ShowSuccess("Pad ongewijzigd.");
             return;
@@ -203,20 +198,23 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        // Drain and reload
-        _repository.Dispose();
-
-        _settings.Current.SnippetsDirectory = newPath;
+        _settings.Current.PendingSnippetsDirectory = newPath == _settings.Current.SnippetsDirectory ? null : newPath;
         _settings.Save();
-
-        RepoPathChanged?.Invoke(this, newPath);
-        ShowSuccess("Snippets-map bijgewerkt. De app herlaadt de repository.");
+        ShowSuccess(_settings.Current.PendingSnippetsDirectory is null
+            ? "Mapwijziging geannuleerd. De huidige bibliotheek blijft actief."
+            : "Nieuwe snippets-map opgeslagen. Herstart de app om deze te gebruiken; je werkt nu nog in de huidige map.");
     }
 
     [RelayCommand]
-    private void ApplyRemoteUrl()
+    private async Task ApplyRemoteUrlAsync()
     {
-        var newUrl = (RemoteUrl ?? "").Trim();
+        string newUrl;
+        try { newUrl = RemoteUrlValidator.Validate(RemoteUrl ?? ""); }
+        catch (ArgumentException)
+        {
+            ShowError("Gebruik een geldige HTTPS-repository-URL zonder wachtwoord, token of queryparameters.");
+            return;
+        }
         if (newUrl == _settings.Current.RemoteUrl)
         {
             ShowSuccess("Remote URL ongewijzigd.");
@@ -225,7 +223,11 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _settings.Current.RemoteUrl = newUrl;
         _settings.Save();
-        RemoteUrlChanged?.Invoke(this, EventArgs.Empty);
+        if (RemoteUrlChangedAction is not null)
+        {
+            try { await RemoteUrlChangedAction(); }
+            catch (Exception) { ShowError("De remote kon niet worden gestart. Je snippets blijven lokaal bewaard."); return; }
+        }
         ShowSuccess(string.IsNullOrEmpty(newUrl)
             ? "Remote URL gewist."
             : "Remote URL bijgewerkt. Klik op 'Nu synchroniseren' om snippets op te halen.");
@@ -247,6 +249,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
+        if (_settings.Current.PendingSnippetsDirectory is not null)
+            StatusMessage = "Synchroniseren gebruikt nog de huidige map; de nieuwe map wordt actief na herstart.";
+
         ShowSuccess("Synchronisatie gestart…");
         try
         {
@@ -261,6 +266,22 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task AuthenticateAsync()
+    {
+        if (AuthenticateAction is null) { ShowError("Aanmelden is niet beschikbaar."); return; }
+        ShowSuccess("GitHub-aanmelding gestart. Rond de aanmelding af of annuleer het venster.");
+        try
+        {
+            await AuthenticateAction();
+            ShowSuccess("Aanmelding en leestoegang gecontroleerd. Synchroniseer om wijzigingen te versturen.");
+        }
+        catch (Exception)
+        {
+            ShowError("Aanmelden of repositorytoegang is niet gelukt. Controleer account, URL en rechten. Je kunt lokaal verderwerken.");
+        }
+    }
+
+    [RelayCommand]
     private void ApplyTheme()
     {
         _settings.Current.Theme = SelectedTheme;
@@ -271,8 +292,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void ApplyPullInterval()
     {
+        try { SettingsService.ValidatePullInterval(PullIntervalSeconds); }
+        catch (ArgumentOutOfRangeException) { ShowError("Kies een sync-interval van 1 tot en met 86400 seconden."); return; }
         _settings.Current.PullIntervalSeconds = PullIntervalSeconds;
         _settings.Save();
+        PullIntervalChangedAction?.Invoke(PullIntervalSeconds);
         ShowSuccess("Sync-interval opgeslagen.");
     }
 

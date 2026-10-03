@@ -56,4 +56,16 @@ public sealed class WpfDialogService : IDialogService
         });
         return Task.CompletedTask;
     }
+
+    public Task<bool?> ConfirmImportConflictsAsync(IReadOnlyList<string> relativePaths)
+    {
+        return Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var choice = MessageBox.Show(
+                $"De lokale bibliotheek en GitHub hebben verschillende versies van {relativePaths.Count} bestanden.\n\n" +
+                "Ja: behoud de lokale versies in de bibliotheek.\nNee: gebruik de GitHub-versies.\nAnnuleren: laat alles lokaal zoals het is.\n\nBeide versies worden bij doorgaan als reservekopie bewaard.",
+                "Bibliotheken samenvoegen", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            return choice switch { MessageBoxResult.Yes => (bool?)true, MessageBoxResult.No => false, _ => null };
+        }).Task;
+    }
 }

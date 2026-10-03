@@ -20,11 +20,15 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private readonly PlaceholderFillContext _placeholderContext;
 
     private CancellationTokenSource? _debounceCts;
+    private Task _queryTask = Task.CompletedTask;
+    private int _queryGeneration;
+    private bool _active;
 
     [ObservableProperty] private string _queryText = string.Empty;
     [ObservableProperty] private bool _isNoMatchVisible;
     [ObservableProperty] private bool _isEmptyLibraryVisible;
     [ObservableProperty] private int _selectedIndex = -1;
+    [ObservableProperty] private string _searchStatus = string.Empty;
 
     public ObservableCollection<SearchResultItem> Results { get; } = [];
 
@@ -52,35 +56,62 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     public void OnActivated()
     {
+        _active = true;
         QueryText = string.Empty;
-        RunQuery(string.Empty);
+        StartQuery(string.Empty, false);
+    }
+
+    public void OnHidden()
+    {
+        _active = false;
+        _queryGeneration++;
+        _debounceCts?.Cancel();
     }
 
     partial void OnQueryTextChanged(string value)
     {
-        _debounceCts?.Cancel();
-        _debounceCts = new CancellationTokenSource();
-        var token = _debounceCts.Token;
-
-        Task.Delay(150, token).ContinueWith(_ =>
-        {
-            if (token.IsCancellationRequested) return;
-            Application.Current.Dispatcher.Invoke(() => RunQuery(value));
-        }, token, TaskContinuationOptions.None, TaskScheduler.Default);
+        StartQuery(value, true);
     }
 
-    private void RunQuery(string query)
+    private void StartQuery(string value, bool debounce)
     {
-        var results = _search.Query(query, 8);
-        Results.Clear();
-        foreach (var r in results)
-            Results.Add(new SearchResultItem(r.Snippet));
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        _debounceCts = new CancellationTokenSource();
+        var token = _debounceCts.Token;
+        var generation = ++_queryGeneration;
+        SearchStatus = "Zoeken…";
+        _queryTask = RunQueryAsync(value, generation, debounce, token);
+    }
 
-        IsEmptyLibraryVisible = _repository.GetAll().Count == 0;
-        IsNoMatchVisible = !IsEmptyLibraryVisible && Results.Count == 0 && !string.IsNullOrWhiteSpace(query);
+    private async Task RunQueryAsync(string query, int generation, bool debounce, CancellationToken token)
+    {
+        try
+        {
+            if (debounce) await Task.Delay(75, token);
+            var results = await Task.Run(() => _search.Query(query, 8, token), token);
+            if (!_active || generation != _queryGeneration || token.IsCancellationRequested) return;
+            Results.Clear();
+            foreach (var r in results)
+                Results.Add(new SearchResultItem(r.Snippet));
 
-        SelectedIndex = Results.Count > 0 ? 0 : -1;
-        UpdateSelectionHighlight();
+            IsEmptyLibraryVisible = _repository.GetAll().Count == 0;
+            IsNoMatchVisible = !IsEmptyLibraryVisible && Results.Count == 0 && !string.IsNullOrWhiteSpace(query);
+
+            SelectedIndex = Results.Count > 0 ? 0 : -1;
+            UpdateSelectionHighlight();
+            SearchStatus = string.Empty;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception)
+        {
+            if (!_active || generation != _queryGeneration) return;
+            Results.Clear();
+            SelectedIndex = -1;
+            IsNoMatchVisible = false;
+            IsEmptyLibraryVisible = false;
+            SearchStatus = "Zoeken is niet gelukt. Probeer opnieuw.";
+        }
     }
 
     [RelayCommand]
@@ -102,6 +133,9 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     [RelayCommand]
     public async Task ConfirmAsync()
     {
+        var generation = _queryGeneration;
+        await _queryTask;
+        if (!_active || generation != _queryGeneration) return;
         if (SelectedIndex < 0 || SelectedIndex >= Results.Count)
         {
             if (IsNoMatchVisible && !string.IsNullOrWhiteSpace(QueryText))

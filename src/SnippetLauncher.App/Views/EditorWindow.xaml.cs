@@ -15,14 +15,16 @@ public partial class EditorWindow : Window
     }
 
     /// <summary>Opens the editor with a new snippet pre-filled with <paramref name="body"/>.</summary>
-    public void OpenForQuickAdd(string? body)
+    public async Task<bool> OpenForQuickAddAsync(string? body)
     {
+        if (!await _vm.EnsureCanLeaveAsync()) return false;
         Show();
         Activate();
         if (body is not null)
-            _vm.NewSnippetCommand.Execute(body);
+            await _vm.NewSnippetCommand.ExecuteAsync(body);
         else
-            _vm.NewSnippetEmptyClipboardCommand.Execute(null);
+            await _vm.NewSnippetEmptyClipboardCommand.ExecuteAsync(null);
+        return true;
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using System.Threading.Channels;
 using LibGit2Sharp;
 using Serilog;
 using SnippetLauncher.Core.Abstractions;
+using SnippetLauncher.Core.Infrastructure;
 
 namespace SnippetLauncher.Core.Sync;
 
@@ -18,6 +18,12 @@ public sealed class GitService : IGitService
     private readonly IClock _clock;
     private readonly IDialogService _dialog;
     private readonly PushQueueStore _pushQueue;
+    private readonly IGitCredentialProvider _credentials;
+    private readonly LibraryFileGate? _fileGate;
+    private GitCredential? _credential;
+    private bool _authenticationPaused;
+    private int _disposed;
+    private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly Channel<GitOp> _channel = Channel.CreateUnbounded<GitOp>(
         new UnboundedChannelOptions { SingleReader = true });
@@ -42,13 +48,15 @@ public sealed class GitService : IGitService
 
     public event EventHandler<GitSyncStatus>? StatusChanged;
 
-    public GitService(string repoPath, IClock clock, IDialogService dialog, PushQueueStore pushQueue, string? remoteUrl = null)
+    public GitService(string repoPath, IClock clock, IDialogService dialog, PushQueueStore pushQueue, string? remoteUrl = null, IGitCredentialProvider? credentials = null, LibraryFileGate? fileGate = null)
     {
         _repoPath = repoPath;
-        _remoteUrl = string.IsNullOrWhiteSpace(remoteUrl) ? null : remoteUrl.Trim();
+        _remoteUrl = remoteUrl is null ? null : RemoteUrlValidator.Validate(remoteUrl);
         _clock = clock;
         _dialog = dialog;
         _pushQueue = pushQueue;
+        _credentials = credentials ?? new GitCredentialProvider();
+        _fileGate = fileGate;
 
         _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "SnippetLauncher.GitWorker" };
         _worker.Start();
@@ -59,40 +67,52 @@ public sealed class GitService : IGitService
     public Task InitOrOpenAsync()
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _channel.Writer.TryWrite(new InitOrOpenOp(tcs));
+        Enqueue(new InitOrOpenOp(tcs));
         return tcs.Task;
     }
 
     public Task CommitAndQueuePushAsync(string message)
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _channel.Writer.TryWrite(new CommitOp(message, tcs));
+        Enqueue(new CommitOp(message, tcs));
         return tcs.Task;
     }
 
     public Task RetryPushNowAsync()
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _channel.Writer.TryWrite(new PushOp(tcs));
+        Enqueue(new PushOp(tcs, true));
         return tcs.Task;
     }
 
     public Task PullNowAsync()
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _channel.Writer.TryWrite(new PullOp(tcs));
+        Enqueue(new PullOp(tcs));
         return tcs.Task;
     }
 
+    private void Enqueue(CompletableOp op)
+    {
+        if (!_channel.Writer.TryWrite(op)) op.TrySetException(new ObjectDisposedException(nameof(GitService)));
+    }
+    public Task AuthenticateAsync()
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Enqueue(new AuthenticateOp(tcs));
+        return tcs.Task;
+    }
     public void StartAutoSync(int pullIntervalSeconds, Func<bool> isEditorDirty)
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        if (pullIntervalSeconds is < 1 or > 86400) throw new ArgumentOutOfRangeException(nameof(pullIntervalSeconds));
         _isEditorDirty = isEditorDirty;
         _pullTimer?.Dispose();
 
         var interval = TimeSpan.FromSeconds(pullIntervalSeconds);
         _pullTimer = new Timer(_ =>
         {
-            if (!_isEditorDirty())
+            if (!_authenticationPaused && !_isEditorDirty())
                 _channel.Writer.TryWrite(new PullOp(null));
         }, null, interval, interval);
     }
@@ -101,12 +121,12 @@ public sealed class GitService : IGitService
 
     private void WorkerLoop()
     {
-        while (!_cts.IsCancellationRequested)
+        while (true)
         {
             GitOp op;
             try
             {
-                op = _channel.Reader.ReadAsync(_cts.Token).AsTask().GetAwaiter().GetResult();
+                op = _channel.Reader.ReadAsync().AsTask().GetAwaiter().GetResult();
             }
             catch (OperationCanceledException) { break; }
             catch { break; }
@@ -117,17 +137,23 @@ public sealed class GitService : IGitService
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "GitService: op {Op} failed", op.GetType().Name);
-                Status = GitSyncStatus.Error;
+                Log.Warning("GitService: op {Op} failed ({Type})", op.GetType().Name, ex.GetType().Name);
+                Status = ex is GitImportConflictException ? GitSyncStatus.Conflict : _authenticationPaused || ex is GitAuthenticationException ? GitSyncStatus.AuthenticationRequired : ex is LibGit2SharpException ? GitSyncStatus.RemoteUnavailable : GitSyncStatus.Error;
+                if (ex is GitAuthenticationException) _authenticationPaused = true;
                 if (op is CompletableOp c) c.TrySetException(ex);
             }
         }
+        _stopped.TrySetResult();
     }
 
     private void Execute(GitOp op)
     {
         switch (op)
         {
+            case AuthenticateOp auth:
+                ExecuteAuthenticate();
+                auth.TrySetResult();
+                break;
             case InitOrOpenOp init:
                 ExecuteInitOrOpen();
                 init.TrySetResult();
@@ -144,7 +170,7 @@ public sealed class GitService : IGitService
                 break;
 
             case PushOp push:
-                ExecutePush();
+                ExecutePush(push.Manual);
                 push.TrySetResult();
                 break;
         }
@@ -159,21 +185,22 @@ public sealed class GitService : IGitService
             Directory.CreateDirectory(_repoPath);
             var isEmpty = !Directory.EnumerateFileSystemEntries(_repoPath).Any();
 
-            if (_remoteUrl is not null && isEmpty)
+            if (!string.IsNullOrEmpty(_remoteUrl) && isEmpty)
             {
                 try
                 {
                     Status = GitSyncStatus.Syncing;
-                    Repository.Clone(_remoteUrl, _repoPath, new CloneOptions
-                    {
-                        FetchOptions = { CredentialsProvider = CredentialsProvider },
-                    });
+                    var stage = _repoPath.TrimEnd(Path.DirectorySeparatorChar) + ".recovery-" + Guid.NewGuid().ToString("N");
+                    Repository.Clone(_remoteUrl, stage, BuildCloneOptions());
+                    Repository.Init(_repoPath);
+                    EnsureOriginConfigured();
+                    RecoverIndependentLibrary(stage);
                     Log.Information("GitService: cloned {Url} into {Path}", _remoteUrl, _repoPath);
                     Status = GitSyncStatus.Idle;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Log.Warning(ex, "GitService: clone failed, falling back to init");
+                    Log.Warning("GitService: clone failed, falling back to init");
                     Status = GitSyncStatus.Error;
                     Repository.Init(_repoPath);
                     EnsureOriginConfigured();
@@ -193,11 +220,16 @@ public sealed class GitService : IGitService
             EnsureOriginConfigured();
         }
 
+        using (var repo = new Repository(_repoPath))
+        {
+            if (repo.RetrieveStatus().IsDirty) ExecuteCommit("Sync: recover interrupted local changes");
+            RecoverPending(repo);
+        }
         // Drain any push queue left over from a previous session
         if (_pushQueue.HasPending)
         {
             Log.Information("GitService: {Count} entries in push queue from previous session — retrying", _pushQueue.Pending.Count);
-            ExecutePush();
+            try { ExecutePush(); } catch (Exception ex) { Status = ex is GitAuthenticationException ? GitSyncStatus.AuthenticationRequired : GitSyncStatus.RemoteUnavailable; }
         }
     }
 
@@ -210,6 +242,11 @@ public sealed class GitService : IGitService
         {
             using var repo = new Repository(_repoPath);
             var existing = repo.Network.Remotes["origin"];
+            if (_remoteUrl.Length == 0)
+            {
+                if (existing is not null) repo.Network.Remotes.Remove("origin");
+                return;
+            }
             if (existing is null)
             {
                 repo.Network.Remotes.Add("origin", _remoteUrl);
@@ -221,9 +258,9 @@ public sealed class GitService : IGitService
                 Log.Information("GitService: updated origin URL to {Url}", _remoteUrl);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.Warning(ex, "GitService: failed to ensure origin remote");
+            Log.Warning("GitService: failed to ensure origin remote");
             throw;
         }
     }
@@ -261,14 +298,15 @@ public sealed class GitService : IGitService
 
             var localBranch = repo.CreateBranch(localName, remoteBranch.Tip);
             repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
+            using var fileLease = _fileGate?.Enter(_cts.Token);
             LibGit2Sharp.Commands.Checkout(repo, localBranch);
             repo.Refs.UpdateTarget("HEAD", localBranch.CanonicalName);
 
             Log.Information("GitService: bootstrapped from {Branch}", remoteBranch.FriendlyName);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.Warning(ex, "GitService: bootstrap from remote failed");
+            Log.Warning("GitService: bootstrap from remote failed");
             throw;
         }
     }
@@ -290,6 +328,7 @@ public sealed class GitService : IGitService
                 return;
             }
 
+            RemoteUrlValidator.Validate(repo.Network.Remotes["origin"].Url);
             if (repo.Head.Tip is null)
             {
                 // Local repo has no commits yet — try to bootstrap from the remote's default branch.
@@ -307,10 +346,22 @@ public sealed class GitService : IGitService
             var trackingBranch = repo.Head.TrackedBranch;
             if (trackingBranch is null)
             {
+                trackingBranch = repo.Branches[$"origin/{repo.Head.FriendlyName}"] ?? repo.Branches["origin/main"] ?? repo.Branches["origin/master"];
+                if (trackingBranch is not null && repo.ObjectDatabase.FindMergeBase(repo.Head.Tip, trackingBranch.Tip) is null)
+                {
+                    repo.Dispose();
+                    RecoverIndependentLibrary();
+                    return;
+                }
+                if (trackingBranch is not null) repo.Branches.Update(repo.Head, b => b.TrackedBranch = trackingBranch.CanonicalName);
+            }
+            if (trackingBranch is null)
+            {
                 Status = GitSyncStatus.Idle;
                 return;
             }
 
+            using var fileLease = _fileGate?.Enter(_cts.Token);
             // 2. Check divergence
             var divergence = repo.ObjectDatabase.CalculateHistoryDivergence(
                 repo.Head.Tip, trackingBranch.Tip);
@@ -325,7 +376,6 @@ public sealed class GitService : IGitService
             var sig = MakeSig();
             var mergeOpts = new MergeOptions
             {
-                FileConflictStrategy = CheckoutFileConflictStrategy.Theirs,
                 CommitOnSuccess = false,
             };
 
@@ -355,12 +405,77 @@ public sealed class GitService : IGitService
                 Status = GitSyncStatus.Idle;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.Warning(ex, "GitService: pull failed");
+            Log.Warning("GitService: pull failed");
             Status = GitSyncStatus.Error;
             throw;
         }
+    }
+
+    private void RecoverIndependentLibrary(string? preparedStage = null)
+    {
+        string remote;
+        HashSet<string> originalCommits;
+        using (var original = new Repository(_repoPath))
+        {
+            remote = RemoteUrlValidator.Validate(original.Network.Remotes["origin"].Url);
+            originalCommits = original.Commits.Select(commit => commit.Sha).ToHashSet();
+        }
+        var stage = preparedStage ?? _repoPath.TrimEnd(Path.DirectorySeparatorChar) + ".recovery-" + Guid.NewGuid().ToString("N");
+        if (preparedStage is null) Repository.Clone(remote, stage, BuildCloneOptions());
+        using var fileLease = _fileGate?.Enter(_cts.Token);
+        var localFiles = Directory.EnumerateFiles(_repoPath, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(_repoPath, path))
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is ".git" or ".local")).ToList();
+        var conflicts = localFiles.Where(path => File.Exists(Path.Combine(stage, path)) &&
+            !File.ReadAllBytes(Path.Combine(stage, path)).SequenceEqual(File.ReadAllBytes(Path.Combine(_repoPath, path)))).ToList();
+        bool? localWins = true;
+        if (conflicts.Count > 0) localWins = _dialog.ConfirmImportConflictsAsync(conflicts).GetAwaiter().GetResult();
+        if (localWins is null)
+        {
+            Status = GitSyncStatus.Conflict;
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(stage, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
+                Directory.Delete(stage, true);
+            }
+            catch (IOException) { Log.Warning("GitService: recovery clone retained after cleanup failure"); }
+            catch (UnauthorizedAccessException) { Log.Warning("GitService: recovery clone retained after cleanup failure"); }
+            throw new GitImportConflictException("Import geannuleerd. De lokale bibliotheek blijft behouden.");
+        }
+        foreach (var path in localFiles)
+        {
+            var destination = Path.Combine(stage, path);
+            if (conflicts.Contains(path))
+            {
+                var backup = Path.Combine(stage, ".local", "conflicts", path);
+                Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+                File.Copy(Path.Combine(_repoPath, path), backup + ".local", true);
+                File.Copy(destination, backup + ".remote", true);
+                if (!localWins.Value) continue;
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(Path.Combine(_repoPath, path), destination, true);
+        }
+        using (var imported = new Repository(stage))
+        {
+            foreach (var path in localFiles) imported.Index.Add(path);
+            imported.Index.Write();
+            if (imported.RetrieveStatus().Any(entry => !entry.FilePath.StartsWith(".local/")))
+                imported.Commit("Sync: import preserved local library", MakeSig(), MakeSig());
+        }
+        var originalBackup = _repoPath.TrimEnd(Path.DirectorySeparatorChar) + ".preserved-" + Guid.NewGuid().ToString("N");
+        Directory.Move(_repoPath, originalBackup);
+        try { Directory.Move(stage, _repoPath); }
+        catch { Directory.Move(originalBackup, _repoPath); throw; }
+        using (var recovered = new Repository(_repoPath))
+        {
+            foreach (var entry in _pushQueue.Pending.Where(entry => originalCommits.Contains(entry.CommitSha))) entry.CommitSha = recovered.Head.Tip.Sha;
+            _pushQueue.Save();
+            RecoverPending(recovered);
+        }
+        Status = conflicts.Count > 0 ? GitSyncStatus.Conflict : GitSyncStatus.Behind;
     }
 
     private void ExecuteCommit(string message)
@@ -371,12 +486,14 @@ public sealed class GitService : IGitService
         {
             using var repo = new Repository(_repoPath);
 
+            using var fileLease = _fileGate?.Enter();
             // Stage all changes
             var status = repo.RetrieveStatus(new StatusOptions { ExcludeSubmodules = true });
             if (!status.IsDirty) return;
 
             foreach (var item in status)
             {
+                if (item.FilePath.StartsWith(".local/", StringComparison.Ordinal) || item.FilePath.StartsWith(".local\\", StringComparison.Ordinal)) continue;
                 if (item.State.HasFlag(FileStatus.DeletedFromWorkdir) ||
                     item.State.HasFlag(FileStatus.DeletedFromIndex))
                     repo.Index.Remove(item.FilePath);
@@ -404,16 +521,17 @@ public sealed class GitService : IGitService
         {
             // Nothing changed — skip
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.Warning(ex, "GitService: commit failed");
+            Log.Warning("GitService: commit failed");
             Status = GitSyncStatus.Error;
+            throw;
         }
     }
 
-    private void ExecutePush()
+    private void ExecutePush(bool manual = false)
     {
-        if (!_pushQueue.HasPending) return;
+        if (_authenticationPaused && !manual) return;
         if (!Repository.IsValid(_repoPath))
             throw new InvalidOperationException("De lokale Git-repository is niet beschikbaar.");
 
@@ -429,31 +547,39 @@ public sealed class GitService : IGitService
 
             Status = GitSyncStatus.Syncing;
 
+            RemoteUrlValidator.Validate(repo.Network.Remotes["origin"].Url);
+            RecoverPending(repo);
+            if (!_pushQueue.HasPending) { Status = GitSyncStatus.Idle; return; }
+            if (manual) foreach (var pending in _pushQueue.Pending) pending.AttemptCount = 0;
             var pushRefSpec = $"refs/heads/{repo.Head.FriendlyName}";
 
             foreach (var entry in _pushQueue.Pending.ToList())
             {
                 if (entry.AttemptCount >= 5)
                 {
-                    Log.Warning("GitService: push entry {Sha} exceeded max retries", entry.CommitSha[..7]);
+                    Log.Warning("GitService: push entry {Sha} exceeded max retries", entry.CommitSha[..Math.Min(7, entry.CommitSha.Length)]);
                     throw new InvalidOperationException("Push is niet gelukt na vijf pogingen. De wijzigingen blijven lokaal bewaard.");
                 }
 
                 try
                 {
-                    repo.Network.Push(repo.Network.Remotes["origin"], pushRefSpec, BuildPushOptions());
-                    _pushQueue.Dequeue(entry);
-                    Log.Information("GitService: pushed {Sha}", entry.CommitSha[..7]);
+                    repo.Network.Push(repo.Network.Remotes["origin"], $"{pushRefSpec}:{pushRefSpec}", BuildPushOptions());
+                    var trackingName = $"refs/remotes/origin/{repo.Head.FriendlyName}";
+                    repo.Refs.Add(trackingName, repo.Head.Tip.Id, true);
+                    repo.Branches.Update(repo.Head, b => b.TrackedBranch = trackingName);
+                    if (repo.Commits.QueryBy(new CommitFilter { IncludeReachableFrom = repo.Head.Tip }).Any(c => c.Sha == entry.CommitSha)) _pushQueue.Dequeue(entry);
+                    ApproveCredential(repo.Network.Remotes["origin"].Url);
+                    Log.Information("GitService: pushed {Sha}", entry.CommitSha[..Math.Min(7, entry.CommitSha.Length)]);
                 }
                 catch (Exception ex)
                 {
                     entry.AttemptCount++;
                     _pushQueue.Save();
-                    Log.Warning(ex, "GitService: push attempt {Attempt} failed", entry.AttemptCount);
+                    Log.Warning("GitService: push attempt {Attempt} failed", entry.AttemptCount);
 
                     // Exponential backoff: 2^n seconds, max 1 hour
                     var delay = TimeSpan.FromSeconds(Math.Min(Math.Pow(2, entry.AttemptCount) * 30, 3600));
-                    _ = Task.Delay(delay, _cts.Token).ContinueWith(t =>
+                    if (ex is not GitAuthenticationException) _ = Task.Delay(delay, _cts.Token).ContinueWith(t =>
                     {
                         if (!t.IsCanceled)
                             _channel.Writer.TryWrite(new PushOp(null));
@@ -465,9 +591,9 @@ public sealed class GitService : IGitService
 
             Status = _pushQueue.HasPending ? GitSyncStatus.Behind : GitSyncStatus.Idle;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.Warning(ex, "GitService: push failed");
+            Log.Warning("GitService: push failed");
             Status = GitSyncStatus.Error;
             throw;
         }
@@ -530,69 +656,61 @@ public sealed class GitService : IGitService
 
     // ── Credentials (Git Credential Manager via git credential fill) ─────────
 
-    private FetchOptions BuildFetchOptions() => new() { CredentialsProvider = CredentialsProvider };
-    private PushOptions BuildPushOptions() => new() { CredentialsProvider = CredentialsProvider };
+    private CloneOptions BuildCloneOptions() => new()
+    {
+        FetchOptions = { CredentialsProvider = CredentialsProvider, OnTransferProgress = _ => !_cts.IsCancellationRequested },
+    };
+    private FetchOptions BuildFetchOptions() => new() { CredentialsProvider = CredentialsProvider, OnTransferProgress = _ => !_cts.IsCancellationRequested };
+    private PushOptions BuildPushOptions() => new() { CredentialsProvider = CredentialsProvider, OnPushTransferProgress = (_, _, _) => !_cts.IsCancellationRequested, OnPackBuilderProgress = (_, _, _) => !_cts.IsCancellationRequested };
 
     private Credentials CredentialsProvider(string url, string? usernameFromUrl, SupportedCredentialTypes types)
     {
-        try
-        {
-            var filled = InvokeGitCredentialFill(url, usernameFromUrl);
-            if (filled is not null)
-                return new UsernamePasswordCredentials { Username = filled.Value.User, Password = filled.Value.Pass };
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "GitService: credential fill failed, falling back to default");
-        }
-        return new DefaultCredentials();
+        GitCredential? credential;
+        try { credential = _credential ?? _credentials.GetAsync(_repoPath, url, false, _cts.Token).GetAwaiter().GetResult(); }
+        catch (GitAuthenticationException) { _authenticationPaused = true; throw; }
+        if (credential is null) { _authenticationPaused = true; throw new GitAuthenticationException("Aanmelding nodig. Kies Aanmelden in de instellingen."); }
+        _authenticationPaused = false;
+        _credential = credential;
+        return new UsernamePasswordCredentials { Username = credential.Username, Password = credential.Password };
     }
-
-    private static (string User, string Pass)? InvokeGitCredentialFill(string url, string? username)
+    private void ExecuteAuthenticate()
     {
-        var gitExe = GitExecutable.Find();
-        if (gitExe is null) return null;
-
-        var uri = new Uri(url);
-        var input = $"protocol={uri.Scheme}\nhost={uri.Host}\n";
-        if (!string.IsNullOrEmpty(username)) input += $"username={username}\n";
-        input += "\n";
-
-        var psi = new ProcessStartInfo(gitExe, "credential fill")
-        {
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var proc = Process.Start(psi)!;
-        proc.StandardInput.Write(input);
-        proc.StandardInput.Close();
-        var output = proc.StandardOutput.ReadToEnd();
-        if (!proc.WaitForExit(5_000)) { proc.Kill(); return null; }
-
-        var dict = output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Split('=', 2))
-            .Where(p => p.Length == 2)
-            .ToDictionary(p => p[0].Trim(), p => p[1].Trim());
-
-        return dict.TryGetValue("username", out var u) && dict.TryGetValue("password", out var p)
-            ? (u, p)
-            : null;
+        string remote;
+        using (var repo = new Repository(_repoPath))
+            remote = repo.Network.Remotes["origin"]?.Url ?? throw new InvalidOperationException("Geen repository ingesteld.");
+        _credential = _credentials.GetAsync(_repoPath, remote, true, _cts.Token).GetAwaiter().GetResult()
+            ?? throw new GitAuthenticationException("Aanmelding geannuleerd.");
+        _authenticationPaused = false;
+        try { ExecutePull(); ExecutePush(true); ApproveCredential(remote); }
+        catch { _credential = null; throw; }
+    }
+    private void ApproveCredential(string url)
+    {
+        if (_credential is not null) _credentials.ApproveAsync(_repoPath, url, _credential, _cts.Token).GetAwaiter().GetResult();
+    }
+    private void RecoverPending(Repository repo)
+    {
+        if (repo.Head.Tip is null || repo.Network.Remotes["origin"] is null) return;
+        var tracking = repo.Head.TrackedBranch;
+        if (tracking?.Tip is not null && repo.ObjectDatabase.CalculateHistoryDivergence(repo.Head.Tip, tracking.Tip).AheadBy == 0) return;
+        if (!_pushQueue.Pending.Any(entry => entry.CommitSha == repo.Head.Tip.Sha))
+            _pushQueue.Enqueue(new PushQueueStore.PushEntry { CommitSha = repo.Head.Tip.Sha, QueuedAt = _clock.UtcNow });
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private Signature MakeSig() => new("SnippetLauncher", "sync@local", _clock.UtcNow);
 
-    public void Dispose()
+    public void StopAutoSyncAndCancelNetwork()
     {
-        _cts.Cancel();
         _pullTimer?.Dispose();
-        _channel.Writer.Complete();
-        _cts.Dispose();
+        _cts.Cancel();
+    }
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0) { _pullTimer?.Dispose(); _channel.Writer.TryComplete(); _cts.Cancel(); }
+        await _stopped.Task.WaitAsync(TimeSpan.FromSeconds(15));
     }
 
     // ── Channel operation types ──────────────────────────────────────────────
@@ -613,5 +731,8 @@ public sealed class GitService : IGitService
     {
         public string Message { get; } = message;
     }
-    private sealed class PushOp(TaskCompletionSource? tcs) : CompletableOp(tcs);
+    private sealed class PushOp(TaskCompletionSource? tcs, bool manual = false) : CompletableOp(tcs) { public bool Manual { get; } = manual; }
+    private sealed class AuthenticateOp(TaskCompletionSource tcs) : CompletableOp(tcs);
 }
+
+public sealed class GitImportConflictException(string message) : InvalidOperationException(message);

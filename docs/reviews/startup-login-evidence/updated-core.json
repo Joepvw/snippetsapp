@@ -1,0 +1,110 @@
+[
+  {
+    "count": 0,
+    "repeat": 0,
+    "loadMs": 24.3455,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.5705,
+    "queryP50Ms": 0.0006,
+    "queryP95Ms": 0.0132
+  },
+  {
+    "count": 0,
+    "repeat": 1,
+    "loadMs": 2.2817,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.0322,
+    "queryP50Ms": 0.0007,
+    "queryP95Ms": 0.0015
+  },
+  {
+    "count": 0,
+    "repeat": 2,
+    "loadMs": 0.5729,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.0036,
+    "queryP50Ms": 0.0003,
+    "queryP95Ms": 0.0004
+  },
+  {
+    "count": 100,
+    "repeat": 0,
+    "loadMs": 5254.8441,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.9086,
+    "queryP50Ms": 2.6097,
+    "queryP95Ms": 6.0289
+  },
+  {
+    "count": 100,
+    "repeat": 1,
+    "loadMs": 25.5075,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.0911,
+    "queryP50Ms": 2.2608,
+    "queryP95Ms": 2.5467
+  },
+  {
+    "count": 100,
+    "repeat": 2,
+    "loadMs": 37.3271,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.0531,
+    "queryP50Ms": 3.1211,
+    "queryP95Ms": 6.3108
+  },
+  {
+    "count": 1000,
+    "repeat": 0,
+    "loadMs": 5637.665,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.8475,
+    "queryP50Ms": 4.1782,
+    "queryP95Ms": 28.096
+  },
+  {
+    "count": 1000,
+    "repeat": 1,
+    "loadMs": 197.1952,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.907,
+    "queryP50Ms": 3.716,
+    "queryP95Ms": 5.0331
+  },
+  {
+    "count": 1000,
+    "repeat": 2,
+    "loadMs": 200.3593,
+    "listRefreshes": 1,
+    "listRefreshMs": 0.4207,
+    "queryP50Ms": 4.3233,
+    "queryP95Ms": 11.2942
+  },
+  {
+    "count": 5000,
+    "repeat": 0,
+    "loadMs": 1362.929,
+    "listRefreshes": 1,
+    "listRefreshMs": 6.4092,
+    "queryP50Ms": 24.7391,
+    "queryP95Ms": 40.0152
+  },
+  {
+    "count": 5000,
+    "repeat": 1,
+    "loadMs": 1113.4017,
+    "listRefreshes": 1,
+    "listRefreshMs": 1.5996,
+    "queryP50Ms": 12.7686,
+    "queryP95Ms": 22.7682
+  },
+  {
+    "count": 5000,
+    "repeat": 2,
+    "loadMs": 551.3649,
+    "listRefreshes": 1,
+    "listRefreshMs": 2.3627,
+    "queryP50Ms": 19.0552,
+    "queryP95Ms": 38.767
+  }
+]
