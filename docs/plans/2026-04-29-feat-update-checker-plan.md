@@ -1,6 +1,6 @@
 # Plan: In-App Update Checker (v1.1)
 
-**Status:** Backlog — not started
+**Status:** Afgerond (vastgesteld 2026-10-04, nachtrun-proef). Gebouwd onder het installerplan `2026-05-21-feat-installer-and-update-notification-plan.md`: `src/SnippetLauncher.Core/Updates/` (GitHubUpdateCheckService, UpdateNotificationService) zit in de releases sinds v1.1.
 **Created:** 2026-04-29
 **Target version:** v1.1.0
 
