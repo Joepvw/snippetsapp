@@ -79,14 +79,15 @@ These constraints are enforced by `tests/SnippetLauncher.App.Tests` (NetArchTest
 
 ## Nachtrun-profiel
 
-Concept (2026-10-04, plan `docs/plans/2026-10-04-001-...` in de dirigent-laag, U3). Wordt pas
-definitief na de eerste proefrun; tot dan leest de skill `nachtrun` dit met Joep erbij.
+Gelezen door de skill `nachtrun` (stap 0). Gedragen door de proefrun van 2026-10-04 (snippetsapp #4 t/m #6).
 
 - **repo / gh:** `Snippets/` in de hoofdmap / `Joepvw/snippetsapp`
 - **default-branch:** `master`
+- **worktree:** `scripts/worktree-nieuw.ps1 -Repo <hoofdmap>\Snippets -GeenNodeModules -GeenCodexKoppeling -Pad <hoofdmap>`; bij opruimen eerst `dotnet build-server shutdown`.
 - **ci-poort:** lokaal groen, in deze volgorde (zelfde stappen als `.github/workflows/ci.yml`):
   `dotnet format Snippets.sln --verify-no-changes --severity warn`, `dotnet build Snippets.sln -c Release`,
-  `dotnet test` met de Core-dekking op ten minste 70%.
+  `dotnet test` op Core met `--collect:"XPlat Code Coverage"` (line-rate in `coverage.cobertura.xml` ten minste 0,70) en op App.
+  Na de merge start CI op `master`; die run is de terugleesstap.
 - **deploy-doel en uitrolketen:** geen. Mergen naar `master` is het eindpunt van een nachtrun.
   Een release (tag, installer, GitHub Release) gaat via de skill `release`, vraagt Joeps
   PATCH/MINOR/MAJOR-keuze en komt als kaart in de klikronde. **Teruglezen:** `git log origin/master`
@@ -100,3 +101,4 @@ definitief na de eerste proefrun; tot dan leest de skill `nachtrun` dit met Joep
   liggende les gaat naar `docs/solutions/`; halverwege gestopt werk naar een handoff in de
   dirigent-laag (`docs/handoffs/`).
 - **reminderlijst:** de AYS-lijst, `ays/Eddy/reminders.md` (alle werkstromen behalve DEN en Babs).
+- **meldingen:** geen. Daarom begint elke run met `gh run list --repo Joepvw/snippetsapp --branch master --limit 3`.
