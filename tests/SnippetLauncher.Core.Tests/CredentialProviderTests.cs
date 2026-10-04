@@ -35,7 +35,15 @@ public sealed class CredentialProviderTests : IDisposable
         if (File.Exists(marker))
         {
             var pid = int.Parse(File.ReadAllText(marker));
-            var running = System.Diagnostics.Process.GetProcesses().Any(p => p.Id == pid);
+            // Een gekild proces kan op een trage runner nog even in de proceslijst staan
+            // terwijl het al is beëindigd; toets daarom HasExited, met een korte marge.
+            var running = true;
+            for (var i = 0; i < 50 && running; i++)
+            {
+                try { using var p = System.Diagnostics.Process.GetProcessById(pid); running = !p.HasExited; }
+                catch (ArgumentException) { running = false; }
+                if (running) await Task.Delay(100);
+            }
             running.Should().BeFalse();
         }
     }
