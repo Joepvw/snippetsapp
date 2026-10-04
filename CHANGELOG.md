@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-10-04
+
+### Fixed
+- Snellere bibliotheekstart en zoekopdrachten; laden en zoeken blokkeren de invoer niet meer door herhaald opbouwen van de volledige lijst.
+- Achtergrondsynchronisatie vraagt niet meer interactief om GitHub-aanmelding; aanmelden gebeurt via een expliciete actie met een begrensde wachttijd.
+- Concepten en placeholders blijven behouden tijdens verversen; opslaan, weggooien of annuleren beschermt onafgemaakte wijzigingen.
+- Synchronisatieherstel bewaart lokale snippets en beide conflictversies, ook wanneer tijdens herstel wordt opgeslagen.
+- Instellingen, gebruiksgegevens en synchronisatiewachtrijen worden atomair opgeslagen; afsluiten heeft een begrensde wachttijd.
+
+### Validation
+- 147 automatische tests en 19 geïsoleerde WPF-scenario’s geslaagd; Core-dekking 87,77%.
+- De echte loginproef op Yasmina’s pc en volledige koude/warmestartmetingen volgen later; haar persoonlijke loginprobleem is nog niet als opgelost bevestigd.
+
 ## [1.1.0] — 2026-05-21
 
 ### Added
@@ -79,7 +92,8 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Joepvw/snippetsapp/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Joepvw/snippetsapp/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/Joepvw/snippetsapp/compare/v1.0.2...v1.0.3
