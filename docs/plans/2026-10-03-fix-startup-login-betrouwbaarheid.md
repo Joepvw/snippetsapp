@@ -280,3 +280,8 @@ Een gebruikersrelease vereist daarna expliciete versiekeuze en verificatie van d
 U1-U5 geïmplementeerd; U6 documentatie, Core-baselinevergelijking en WPF-scenario's uitgevoerd. Volledige lokale tests: 146 Core + 1 architectuur groen, 87.77% Core-dekking, 19 WPF-scenario's groen. Vier reviewbevindingen gecorrigeerd en onafhankelijk gehercontroleerd. Zie [uitvoeringsrapport](../reviews/2026-10-03-startup-login-uitvoering.md).
 
 Joep heeft de echte Yasmina/GCM-proef expliciet doorgeschoven (“Nee, die proef kan later”). Volledige cold/warm processtart en fysieke hotkey/invoer blijven eveneens veldacceptatie; gemeten Core-tijden zijn geen volledige UI-latentieclaim. Een gebruikersinstaller volgt pas na afzonderlijke versiekeuze volgens CLAUDE.md; huidige tag v1.1.0.
+
+## Sessieafsluiting 2026-10-04
+
+Code gemerged via PR #2. Release v1.1.1 gepubliceerd met installer, zip en SHA256-controlesommen; remote assetdigests zijn gelijk aan lokale hashes. Joep heeft de installer uitgevoerd. Technische uitvoering en release zijn afgerond; praktijkacceptatie blijft open en staat in [de handoff](../handoffs/2026-10-04-snippets-praktijkacceptatie.md).
+
