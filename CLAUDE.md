@@ -76,3 +76,27 @@ These constraints are enforced by `tests/SnippetLauncher.App.Tests` (NetArchTest
 - **Plans first.** Non-trivial features get a plan in `docs/plans/YYYY-MM-DD-<slug>.md` before implementation. See `docs/plans/README.md` for the template.
 - **Capture learnings.** When a non-obvious bug is fixed or a tricky architectural decision is made, add an entry to `docs/solutions/` so the next session (human or agent) can find it.
 - **Parallel review on branch work.** Run `/review-branch` to spawn security, architecture, performance, and simplicity reviewers in parallel against the current branch diff before opening a PR.
+
+## Nachtrun-profiel
+
+Concept (2026-10-04, plan `docs/plans/2026-10-04-001-...` in de dirigent-laag, U3). Wordt pas
+definitief na de eerste proefrun; tot dan leest de skill `nachtrun` dit met Joep erbij.
+
+- **repo / gh:** `Snippets/` in de hoofdmap / `Joepvw/snippetsapp`
+- **default-branch:** `master`
+- **ci-poort:** lokaal groen, in deze volgorde (zelfde stappen als `.github/workflows/ci.yml`):
+  `dotnet format Snippets.sln --verify-no-changes --severity warn`, `dotnet build Snippets.sln -c Release`,
+  `dotnet test` met de Core-dekking op ten minste 70%.
+- **deploy-doel en uitrolketen:** geen. Mergen naar `master` is het eindpunt van een nachtrun.
+  Een release (tag, installer, GitHub Release) gaat via de skill `release`, vraagt Joeps
+  PATCH/MINOR/MAJOR-keuze en komt als kaart in de klikronde. **Teruglezen:** `git log origin/master`
+  toont de merge, en de ci-poort is groen op de merge-commit.
+- **grenzen:** naar buiten is hier een release, want gebruikers krijgen dan een updatemelding.
+  's Nachts dus nooit taggen, geen GitHub Release, geen installer publiceren. Ook nooit: een
+  OAuth-app registreren of rechten wijzigen, en niets in `snippets/` (gebruikersinhoud) aanraken.
+  De architectuur-invarianten hierboven gelden onverkort.
+- **lifecycle:** een af plan krijgt bovenaan een regel `Status: implementatie afgerond op <datum>,
+  PR <link>` (zoals `docs/plans/2026-10-03-fix-onboarding-sync-status.md`); een niet-voor-de-hand-
+  liggende les gaat naar `docs/solutions/`; halverwege gestopt werk naar een handoff in de
+  dirigent-laag (`docs/handoffs/`).
+- **reminderlijst:** de AYS-lijst, `ays/Eddy/reminders.md` (alle werkstromen behalve DEN en Babs).
