@@ -73,7 +73,10 @@ public class UpdateNotificationServiceTests
             interval: TimeSpan.FromMilliseconds(50));
 
         svc.Start();
-        await Task.Delay(250);
+        // Poll in plaats van een vaste wachttijd: op een drukke CI-runner komt de lus in
+        // 250 ms soms maar één keer rond.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (check.Calls <= 1 && DateTime.UtcNow < deadline) await Task.Delay(25);
 
         check.Calls.Should().BeGreaterThan(1);
     }
