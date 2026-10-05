@@ -14,23 +14,31 @@ in een eigen Git-repository. Voor meedoen met een bestaande gedeelde repo zie
 > **Sync is optioneel.** Je kunt Snippet Launcher prima lokaal gebruiken zonder remote.
 > De app initialiseert in dat geval gewoon een lokale Git-repo voor versiebeheer.
 
-## Stap 1 — Snippet Launcher downloaden
+## Stap 1 — Snippet Launcher installeren
 
-1. Download de nieuwste `.zip` van de Releases-pagina:
-   **https://github.com/Joepvw/snippetsapp/releases/latest**
-2. Pak de zip uit naar `%LOCALAPPDATA%\Programs\SnippetLauncher\`
-   (typ dat pad in de adresbalk van Verkenner — Windows maakt de mappen automatisch aan).
-3. Klik met **rechts** op `SnippetLauncher.App.exe` → **Eigenschappen** →
-   onderin bij "Beveiliging" → vink **Blokkering opheffen** aan → OK.
-4. Maak optioneel een snelkoppeling op je bureaublad of in het Start Menu.
-
-Gebruik je de installer (`SnippetLauncher-Setup-vX.Y.Z.exe`) in plaats van de zip, dan
-vervallen stap 2 en 3: dubbelklik het bestand en doorloop de schermen.
+1. Ga naar de Releases-pagina: **https://github.com/Joepvw/snippetsapp/releases/latest**
+2. Download `SnippetLauncher-Setup-vX.Y.Z.exe` (één bestand, geen zip uitpakken).
+3. Dubbelklik het bestand. Zie je "Windows heeft uw pc beschermd", klik dan op
+   **Meer info** en dan op **Toch uitvoeren** (uitleg hieronder).
+4. Klik door de installer. Standaard wordt Snippet Launcher per gebruiker geïnstalleerd in
+   `%LOCALAPPDATA%\Programs\SnippetLauncher\` zonder admin-rechten. Vink eventueel
+   "Snelkoppeling op bureaublad maken" aan. Aan het einde kun je "Snippet Launcher starten"
+   aanlaten.
 
 > **"Windows heeft uw pc beschermd"?** Klik op **Meer info** en dan op **Toch uitvoeren**.
 > Windows toont deze melding omdat de installer niet digitaal ondertekend is (een
 > handtekening kost een betaald certificaat). Er is niets mis met het bestand: je kunt
 > het controleren met de SHA256-controlesom onder de release.
+
+> **Updates** verlopen later vanzelf: zodra er een nieuwe versie is, verschijnt er
+> een melding in het systeemvak met een link naar de nieuwe download. Draai die
+> opnieuw en je hebt de update.
+
+> **Liever zonder installer?** Ook de `.zip` met de losse bestanden staat als alternatief
+> op de Release-pagina, voor power-users. Pak hem uit naar
+> `%LOCALAPPDATA%\Programs\SnippetLauncher\` en klik met rechts op
+> `SnippetLauncher.App.exe` → **Eigenschappen** → onderin bij "Beveiliging" →
+> vink **Blokkering opheffen** aan.
 
 ## Stap 2 — Kies waar je snippets komen te staan
 
@@ -57,7 +65,7 @@ Sla deze stap over als je geen sync nodig hebt.
 
 ## Stap 4 — First-run wizard doorlopen
 
-Start `SnippetLauncher.App.exe`. De wizard opent automatisch:
+Start Snippet Launcher (de installer doet dat zelf als je dat aanliet, anders via het Start Menu). De wizard opent automatisch:
 
 | Stap | Actie |
 |------|-------|
