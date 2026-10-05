@@ -161,6 +161,12 @@ Bijgewerkt 2026-10-03: follow-up 1 en 2 zijn gebouwd in de broncode, zie
 geïnstalleerde gebruikers blijft afhankelijk van een aparte versie- en releasekeuze.
 Follow-up 3 en 4 blijven open.
 
+Bijgewerkt 2026-10-05: follow-up 4 is afgerond met keuze (c), alleen uitleg (Joep
+2026-10-04). De setup-handleidingen, de README en het release-notes-blok in de skill
+`release` leggen uit: "Windows heeft uw pc beschermd: klik op Meer info en dan Toch
+uitvoeren", met als reden dat de installer niet ondertekend is. Geen ondertekening en geen
+Microsoft-inzending. Follow-up 3 blijft open.
+
 1. **Git for Windows-detectie in de first-run wizard.** Minimaal: bij de
    Remote-stap, als `git.exe` niet vindbaar is op PATH én er een Remote-URL is
    ingevuld, toon een waarschuwing met een directe link naar
@@ -173,6 +179,6 @@ Follow-up 3 en 4 blijven open.
    Device Flow lijkt nu nog meer voor de hand te liggen omdat het in één klap óók
    de Git-for-Windows-dependency wegneemt. Apart brainstorm + plan waard wanneer
    prioriteit het toelaat.
-4. **SmartScreen bypass-coaching** in release notes verwerken, of overstappen op
+4. **[Afgerond 2026-10-05, keuze: alleen uitleg] SmartScreen bypass-coaching** in release notes verwerken, of overstappen op
    Azure Trusted Signing zodat dit verdwijnt. Eerst Microsoft binary-submission
    proberen als gratis pleister.

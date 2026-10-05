@@ -6,6 +6,8 @@ artifact_contract: ce-unified-plan/v1
 product_contract_source: ce-plan-bootstrap
 execution: code
 ---
+Status: implementatie afgerond op 2026-10-03, PR [snippetsapp#2](https://github.com/Joepvw/snippetsapp/pull/2), uitgerold in v1.1.1. Praktijkacceptatie bij Yasmina (echte GCM-aanmelding, processtart en hotkey in het veld) staat nog open, zie [de handoff](../handoffs/2026-10-04-snippets-praktijkacceptatie.md). Bijgewerkt 2026-10-05.
+
 # SnippetLauncher snelheid en betrouwbaarheid - Plan
 
 ## Goal Capsule

@@ -18,12 +18,17 @@ om met een collega of tussen je eigen machines dezelfde bibliotheek te delen.
 
 1. Ga naar de Releases-pagina: **https://github.com/Joepvw/snippetsapp/releases/latest**
 2. Download `SnippetLauncher-Setup-vX.Y.Z.exe` (één bestand — geen zip uitpakken).
-3. Dubbelklik het bestand. Windows SmartScreen waarschuwt dat de app niet ondertekend is:
-   klik op **Meer informatie** → **Toch uitvoeren**.
+3. Dubbelklik het bestand. Zie je "Windows heeft uw pc beschermd", klik dan op
+   **Meer info** en dan op **Toch uitvoeren** (uitleg hieronder).
 4. Klik door de installer (3 schermen). Standaard wordt Snippet Launcher per gebruiker
    geïnstalleerd in `%LOCALAPPDATA%\Programs\SnippetLauncher\` zonder admin-rechten.
    Vink eventueel "Snelkoppeling op bureaublad maken" aan. Aan het einde kun je
    "Snippet Launcher starten" aanlaten.
+
+> **"Windows heeft uw pc beschermd"?** Klik op **Meer info** en dan op **Toch uitvoeren**.
+> Windows toont deze melding omdat de installer niet digitaal ondertekend is (een
+> handtekening kost een betaald certificaat). Er is niets mis met het bestand: je kunt
+> het controleren met de SHA256-controlesom onder de release.
 
 > **Updates** verlopen later vanzelf: zodra er een nieuwe versie is, verschijnt er
 > een melding in het systeemvak met een link naar de nieuwe download. Draai die
@@ -81,7 +86,7 @@ Een backup van de lokale versie wordt opgeslagen in `<snippets-map>/.local/confl
 
 | Probleem | Oplossing |
 |----------|-----------|
-| App start niet (SmartScreen) | Zie Stap 1 — blokkering opheffen |
+| "Windows heeft uw pc beschermd" | Klik op **Meer info** en dan **Toch uitvoeren**; zie Stap 1 |
 | Hotkey werkt niet | Ga naar tray → Instellingen → Sneltoetsen en kies een andere combinatie |
 | Git auth-fout | Kies **Aanmelden bij GitHub** in Instellingen → Opslag; controleer account, uitnodiging en repositoryrechten |
 | Snippets worden niet gesynchroniseerd | Controleer of Git for Windows is geïnstalleerd en of de remote URL klopt (tray → Instellingen → Opslag) |

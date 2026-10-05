@@ -113,8 +113,19 @@ git push origin vX.Y.Z
 
 ## Step 9 — GitHub Release
 
-Extract the `## [X.Y.Z]` section from `CHANGELOG.md` and append the SHA256
-block from `publish\SHA256SUMS.txt`. Upload all three assets:
+Extract the `## [X.Y.Z]` section from `CHANGELOG.md`, append the fixed
+SmartScreen block below, then the SHA256 block from `publish\SHA256SUMS.txt`.
+The installer is not signed (decision Joep 2026-10-04: explain, don't sign), so
+every release carries this block verbatim, in Dutch like the user docs:
+
+```
+## Installeren: "Windows heeft uw pc beschermd"
+Klik op **Meer info** en dan op **Toch uitvoeren**. Windows toont deze melding
+omdat de installer niet digitaal ondertekend is. Controleer het bestand gerust
+met de SHA256-controlesom hieronder.
+```
+
+Upload all three assets:
 
 ```
 $Sha = Get-Content publish\SHA256SUMS.txt -Raw
@@ -123,7 +134,7 @@ gh release create vX.Y.Z `
   publish\SnippetLauncher-Setup-vX.Y.Z.exe `
   publish\SHA256SUMS.txt `
   --title "vX.Y.Z - <one-line summary>" `
-  --notes "<changelog block>`n`n## SHA256 checksums`n``````n$Sha```````"
+  --notes "<changelog block>`n`n<SmartScreen block>`n`n## SHA256 checksums`n``````n$Sha```````"
 ```
 
 ## After release

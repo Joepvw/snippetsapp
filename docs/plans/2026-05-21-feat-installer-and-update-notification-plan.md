@@ -7,6 +7,8 @@ supersedes: docs/plans/2026-04-29-feat-update-checker-plan.md
 brainstorm: docs/brainstorms/2026-05-21-installer-onboarding-brainstorm.md
 deepened: 2026-05-21
 ---
+Status: implementatie afgerond, uitgerold in v1.1.0 (installer plus updatemelding) en v1.1.1. De vier installer-acceptatievakjes zijn nooit formeel afgevinkt; de setup.exe-grootte (45 MB) is volgens de commitgeschiedenis bevestigd. SmartScreen: keuze (c) alleen uitleg, verwerkt op 2026-10-05. Bijgewerkt 2026-10-05.
+
 
 # One-click installer + in-app update notification
 

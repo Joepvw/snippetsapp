@@ -24,6 +24,14 @@ in een eigen Git-repository. Voor meedoen met een bestaande gedeelde repo zie
    onderin bij "Beveiliging" → vink **Blokkering opheffen** aan → OK.
 4. Maak optioneel een snelkoppeling op je bureaublad of in het Start Menu.
 
+Gebruik je de installer (`SnippetLauncher-Setup-vX.Y.Z.exe`) in plaats van de zip, dan
+vervallen stap 2 en 3: dubbelklik het bestand en doorloop de schermen.
+
+> **"Windows heeft uw pc beschermd"?** Klik op **Meer info** en dan op **Toch uitvoeren**.
+> Windows toont deze melding omdat de installer niet digitaal ondertekend is (een
+> handtekening kost een betaald certificaat). Er is niets mis met het bestand: je kunt
+> het controleren met de SHA256-controlesom onder de release.
+
 ## Stap 2 — Kies waar je snippets komen te staan
 
 Bedenk een lokale map waar je snippets-repo komt, bijvoorbeeld:
@@ -128,7 +136,7 @@ naar [setup-second-user.md](setup-second-user.md).
 
 | Probleem | Oplossing |
 |----------|-----------|
-| App start niet (SmartScreen) | Zie Stap 1 — blokkering opheffen |
+| "Windows heeft uw pc beschermd" | Klik op **Meer info** en dan **Toch uitvoeren**; zie Stap 1 |
 | Wizard weigert map | Map is niet leeg en geen Git-repo. Kies een lege map. |
 | Push faalt na eerste commit | GitHub-repo was niet leeg. Verwijder de remote-repo en maak hem opnieuw aan zonder README/`.gitignore`. |
 | Git auth-fout | Gebruik een [Personal Access Token](https://github.com/settings/tokens) (scope: `repo`) als wachtwoord; Git Credential Manager onthoudt hem. |
