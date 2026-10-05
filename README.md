@@ -20,8 +20,10 @@ Lokale Windows-applicatie (WPF / .NET 10) die via een globale hotkey een fuzzy-s
 ## Installatie
 
 1. Download `SnippetLauncher-Setup-vX.Y.Z.exe` uit [Releases](../../releases).
-2. Dubbelklik het bestand. Bij de SmartScreen-waarschuwing: klik op
-   **Meer informatie** → **Toch uitvoeren** (de binary is niet code-signed).
+2. Dubbelklik het bestand. Zie je "Windows heeft uw pc beschermd", klik dan op
+   **Meer info** en dan op **Toch uitvoeren**. Windows waarschuwt omdat de installer
+   niet digitaal ondertekend is; de SHA256-controlesom onder de release is het
+   integriteitsanker.
 3. Doorloop de installer (3 schermen, geen admin-rechten nodig — installeert
    per-user in `%LOCALAPPDATA%\Programs\SnippetLauncher\`).
 4. Bij eerste start verschijnt de **First-run wizard** — volg de stappen om een

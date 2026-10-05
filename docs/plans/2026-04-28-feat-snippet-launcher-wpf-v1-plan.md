@@ -5,6 +5,8 @@ date: 2026-04-28
 brainstorm: docs/brainstorms/2026-04-28-snippet-launcher-brainstorm.md
 revision: 2 (post technical-review)
 ---
+Status: V1 is gebouwd en uitgerold als v1.0.0 tot en met v1.0.4; latere plannen (installer, update-checker, startup-login) bouwen erop voort. De acceptatielijst hieronder is nooit formeel afgevinkt; dat gebeurt niet meer met terugwerkende kracht. Bijgewerkt 2026-10-05.
+
 
 # Snippet Launcher (WPF) — V1
 
