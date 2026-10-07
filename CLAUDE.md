@@ -92,6 +92,7 @@ Gelezen door de skill `nachtrun` (stap 0). Gedragen door de proefrun van 2026-10
   Een release (tag, installer, GitHub Release) gaat via de skill `release`, vraagt Joeps
   PATCH/MINOR/MAJOR-keuze en komt als kaart in de klikronde. **Teruglezen:** `git log origin/master`
   toont de merge, en de ci-poort is groen op de merge-commit.
+- **live-trede:** 1 (max 1). Merge naar `master` is het eindpunt; een draft-release (trede 2) wacht op een keuze van Joep. Schaal en vrijgave-verhoging: skill `nachtrun` stap 0.
 - **grenzen:** naar buiten is hier een release, want gebruikers krijgen dan een updatemelding.
   's Nachts dus nooit taggen, geen GitHub Release, geen installer publiceren. Ook nooit: een
   OAuth-app registreren of rechten wijzigen, en niets in `snippets/` (gebruikersinhoud) aanraken.
