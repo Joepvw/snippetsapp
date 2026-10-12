@@ -24,13 +24,13 @@ Send a single message with **four** Agent tool calls. Each agent should:
 
 The four agents:
 
-1. **`compound-engineering:review:security-sentinel`** — focus: clipboard handling, file IO paths, git credentials, log redaction, P/Invoke surface, deserialization (YAML frontmatter, settings.json).
+1. **`compound-engineering:ce-security-sentinel`** — focus: clipboard handling, file IO paths, git credentials, log redaction, P/Invoke surface, deserialization (YAML frontmatter, settings.json).
 
-2. **`compound-engineering:review:architecture-strategist`** — focus: Core ↔ App boundary (no WPF refs leaking into Core), DI seams (`IClock`, `IClipboardService`, `IDialogService`, `ICommandBus`, `IGitService`, `IGlobalHotkeyService`), threading invariants (GitService single-worker, SnippetRepository single-writer Channel).
+2. **`compound-engineering:ce-architecture-strategist`** — focus: Core ↔ App boundary (no WPF refs leaking into Core), DI seams (`IClock`, `IClipboardService`, `IDialogService`, `ICommandBus`, `IGitService`, `IGlobalHotkeyService`), threading invariants (GitService single-worker, SnippetRepository single-writer Channel).
 
-3. **`compound-engineering:review:performance-oracle`** — focus: search index allocation, debouncing (popup search 150ms), startup time, memory ceiling (<150MB target), unnecessary file reads, large LINQ chains, async/await correctness.
+3. **`compound-engineering:ce-performance-oracle`** — focus: search index allocation, debouncing (popup search 75 ms), startup time, memory ceiling (<150MB target), unnecessary file reads, large LINQ chains, async/await correctness.
 
-4. **`compound-engineering:review:code-simplicity-reviewer`** — focus: YAGNI in WPF ViewModels, premature abstractions, dead code, comments that restate the code, error handling for impossible scenarios.
+4. **`compound-engineering:ce-code-simplicity-reviewer`** — focus: YAGNI in WPF ViewModels, premature abstractions, dead code, comments that restate the code, error handling for impossible scenarios.
 
 In each agent prompt, paste:
 - The branch name and commit list from Step 1.

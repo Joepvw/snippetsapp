@@ -5,7 +5,7 @@ description: Execute a SnippetLauncher release end-to-end — bump version, upda
 
 # SnippetLauncher release
 
-Automates the release procedure from `CLAUDE.md`. Always confirms the version bump with the user before doing anything destructive. Requires **Inno Setup 6** installed on the build machine (used in step 7b to produce the per-user installer asset).
+Automates the release procedure; `CLAUDE.md` points here, so this file is the source for the steps. Always confirms the version bump with the user before doing anything destructive. Requires **Inno Setup 6** installed on the build machine (used in step 7b to produce the per-user installer asset).
 
 ## Step 0 — Confirm version
 
@@ -72,7 +72,7 @@ If publish fails, stop. Do not push a broken release.
 ## Step 7 — Zip (PowerShell)
 
 ```
-Compress-Archive -Path publish\SnippetLauncher-win-x64 \
+Compress-Archive -Path publish\SnippetLauncher-win-x64 `
   -DestinationPath publish\SnippetLauncher-vX.Y.Z-win-x64.zip -Force
 ```
 

@@ -37,7 +37,7 @@ Twee dingen die misgaan als je het met de hand doet: ontbreekt `iscc.exe`, stop 
 - Solution: `Snippets.sln`
 - Target framework: .NET 10 (WPF, Windows-only — `net10.0-windows` TFM)
 - Build: `dotnet build Snippets.sln -c Release` (~5–10 s clean, <3 s incremental)
-- Run tests: `dotnet test` — Core suite ~67 tests, **8–12 s** is normal (integration tests spin up real temp git repos and real filesystem; do not "fix" this slowness with mocks, see test conventions below)
+- Run tests: `dotnet test` — Core suite 146 tests (counted 2026-10-12), **~20–30 s** is normal (CI 18 s, local 27 s; integration tests spin up real temp git repos and real filesystem; do not "fix" this slowness with mocks, see test conventions below)
 - Format check: `dotnet format Snippets.sln --verify-no-changes --severity warn` (CI gate; auto-fix locally with `dotnet format Snippets.sln`)
 - Run app from source: `dotnet run --project src/SnippetLauncher.App`
 - A second `dotnet run` will exit immediately (single-instance mutex `SnippetLauncher_SingleInstance_Mutex`); kill via `taskkill //F //IM SnippetLauncher.App.exe` if needed
