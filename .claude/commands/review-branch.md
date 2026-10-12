@@ -20,7 +20,7 @@ If there are no changes vs master, stop and tell the user.
 Send a single message with **four** Agent tool calls. Each agent should:
 - Read the diff itself (`git diff master...HEAD`) plus any files it needs.
 - Return findings as a list with severity (P1 critical / P2 important / P3 nice-to-fix), file:line references, and a concrete suggested fix.
-- Stay under 400 words.
+- Keep the list compact: one line per finding, no preamble.
 
 The four agents:
 
