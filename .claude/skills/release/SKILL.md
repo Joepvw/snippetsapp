@@ -134,7 +134,7 @@ gh release create vX.Y.Z `
   publish\SnippetLauncher-Setup-vX.Y.Z.exe `
   publish\SHA256SUMS.txt `
   --title "vX.Y.Z - <one-line summary>" `
-  --notes "<changelog block>`n`n<SmartScreen block>`n`n## SHA256 checksums`n``````n$Sha```````"
+  --notes "<changelog block>`n`n<SmartScreen block>`n`n## SHA256 checksums`n```````n$Sha``````"
 ```
 
 ## After release
