@@ -5,8 +5,11 @@ date: 2026-10-03
 artifact_contract: ce-unified-plan/v1
 product_contract_source: ce-plan-bootstrap
 execution: code
+status: afgerond
 ---
-Status: implementatie afgerond op 2026-10-03, PR [snippetsapp#2](https://github.com/Joepvw/snippetsapp/pull/2), uitgerold in v1.1.1. Praktijkacceptatie bij Yasmina (echte GCM-aanmelding, processtart en hotkey in het veld) staat nog open, zie [de handoff](../handoffs/2026-10-04-snippets-praktijkacceptatie.md). Bijgewerkt 2026-10-05.
+
+Vervallen op 2026-10-15: geschrapt via de schrapkaart (registerrij `schrappen-2026-10-15` in de dirigent-laag, `context/vrijgave.md`), niet verder opgepakt.
+Status: implementatie afgerond op 2026-10-03, PR [snippetsapp#2](https://github.com/Joepvw/snippetsapp/pull/2), uitgerold in v1.1.1. Praktijkacceptatie bij Yasmina (echte GCM-aanmelding, processtart en hotkey in het veld) staat nog open, zie [de handoff](../handoffs/2026-10-04-snippets-praktijkacceptatie-af.md). Bijgewerkt 2026-10-05.
 
 # SnippetLauncher snelheid en betrouwbaarheid - Plan
 
@@ -285,5 +288,5 @@ Joep heeft de echte Yasmina/GCM-proef expliciet doorgeschoven (“Nee, die proef
 
 ## Sessieafsluiting 2026-10-04
 
-Code gemerged via PR #2. Release v1.1.1 gepubliceerd met installer, zip en SHA256-controlesommen; remote assetdigests zijn gelijk aan lokale hashes. Joep heeft de installer uitgevoerd. Technische uitvoering en release zijn afgerond; praktijkacceptatie blijft open en staat in [de handoff](../handoffs/2026-10-04-snippets-praktijkacceptatie.md).
+Code gemerged via PR #2. Release v1.1.1 gepubliceerd met installer, zip en SHA256-controlesommen; remote assetdigests zijn gelijk aan lokale hashes. Joep heeft de installer uitgevoerd. Technische uitvoering en release zijn afgerond; praktijkacceptatie blijft open en staat in [de handoff](../handoffs/2026-10-04-snippets-praktijkacceptatie-af.md).
 

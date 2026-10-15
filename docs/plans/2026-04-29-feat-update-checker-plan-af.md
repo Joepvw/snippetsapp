@@ -1,6 +1,8 @@
 # Plan: In-App Update Checker (v1.1)
 
-**Status:** Afgerond (vastgesteld 2026-10-04, nachtrun-proef). Gebouwd onder het installerplan `2026-05-21-feat-installer-and-update-notification-plan.md`: `src/SnippetLauncher.Core/Updates/` (GitHubUpdateCheckService, UpdateNotificationService) zit in de releases sinds v1.1.
+Vervallen op 2026-10-15: geschrapt via de schrapkaart (registerrij `schrappen-2026-10-15` in de dirigent-laag, `context/vrijgave.md`), niet verder opgepakt.
+
+**Status:** Afgerond (vastgesteld 2026-10-04, nachtrun-proef). Gebouwd onder het installerplan `2026-05-21-feat-installer-and-update-notification-plan-af.md`: `src/SnippetLauncher.Core/Updates/` (GitHubUpdateCheckService, UpdateNotificationService) zit in de releases sinds v1.1.
 **Created:** 2026-04-29
 **Target version:** v1.1.0
 

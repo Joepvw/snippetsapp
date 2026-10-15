@@ -3,10 +3,13 @@ title: One-click installer + in-app update notification
 type: feat
 date: 2026-05-21
 target_version: v1.1.0
-supersedes: docs/plans/2026-04-29-feat-update-checker-plan.md
+supersedes: docs/plans/2026-04-29-feat-update-checker-plan-af.md
 brainstorm: docs/brainstorms/2026-05-21-installer-onboarding-brainstorm.md
 deepened: 2026-05-21
+status: afgerond
 ---
+
+Vervallen op 2026-10-15: geschrapt via de schrapkaart (registerrij `schrappen-2026-10-15` in de dirigent-laag, `context/vrijgave.md`), niet verder opgepakt.
 Status: implementatie afgerond, uitgerold in v1.1.0 (installer plus updatemelding) en v1.1.1. De vier installer-acceptatievakjes zijn nooit formeel afgevinkt; de setup.exe-grootte (45 MB) is volgens de commitgeschiedenis bevestigd. SmartScreen: keuze (c) alleen uitleg, verwerkt op 2026-10-05. Bijgewerkt 2026-10-05.
 
 
@@ -43,7 +46,7 @@ GitHub Releases API polt en bij een nieuwe versie een tray-toast laat zien plus
 een persistent menu-item in het tray context-menu (de enige klikbare actie, die
 de browser opent naar de release-pagina).
 
-Dit plan **vervangt** [docs/plans/2026-04-29-feat-update-checker-plan.md](2026-04-29-feat-update-checker-plan.md)
+Dit plan **vervangt** [docs/plans/2026-04-29-feat-update-checker-plan-af.md](2026-04-29-feat-update-checker-plan-af.md)
 — dat plan dekte alleen de Settings-button variant van de updater. Dit nieuwe
 plan bundelt installer + updater omdat beide samen pas écht het "tweede gebruiker
 meekrijgen"-probleem oplossen.
@@ -534,7 +537,7 @@ Acceptance:
 
 ### Internal
 - Brainstorm: [docs/brainstorms/2026-05-21-installer-onboarding-brainstorm.md](../brainstorms/2026-05-21-installer-onboarding-brainstorm.md)
-- Voorganger-plan (te superseden): [docs/plans/2026-04-29-feat-update-checker-plan.md](2026-04-29-feat-update-checker-plan.md)
+- Voorganger-plan (te superseden): [docs/plans/2026-04-29-feat-update-checker-plan-af.md](2026-04-29-feat-update-checker-plan-af.md)
 - Architectuur: [docs/architecture.md](../architecture.md)
 - Release-skill: [.claude/skills/release/SKILL.md](../../.claude/skills/release/SKILL.md)
 - Versie-attribuut lezen: `src/SnippetLauncher.App/App.xaml.cs:28-32`

@@ -98,7 +98,7 @@ Gelezen door de skill `nachtrun` (stap 0). Gedragen door de proefrun van 2026-10
   OAuth-app registreren of rechten wijzigen, en niets in `snippets/` (gebruikersinhoud) aanraken.
   De architectuur-invarianten hierboven gelden onverkort.
 - **lifecycle:** een af plan krijgt bovenaan een regel `Status: implementatie afgerond op <datum>,
-  PR <link>` (zoals `docs/plans/2026-10-03-fix-onboarding-sync-status.md`); een niet-voor-de-hand-
+  PR <link>` (zoals `docs/plans/2026-10-03-fix-onboarding-sync-status-af.md`); een niet-voor-de-hand-
   liggende les gaat naar `docs/solutions/`; halverwege gestopt werk naar een handoff in de
   dirigent-laag (`docs/handoffs/`).
 - **reminderlijst:** de AYS-lijst, `ays/Eddy/reminders.md` (alle werkstromen behalve DEN en Babs).

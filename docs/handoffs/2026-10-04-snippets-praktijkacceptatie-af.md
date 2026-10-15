@@ -1,10 +1,12 @@
 # Snippets: praktijkacceptatie na versie 1.1.1
 
+Vervallen op 2026-10-15: geschrapt via de schrapkaart (registerrij `schrappen-2026-10-15` in de dirigent-laag, `context/vrijgave.md`), niet verder opgepakt.
+
 Datum: 2026-10-04. Status: wachten op praktijkfeedback; geen open bouwwerk.
 
 ## Lees eerst
 - [Uitvoeringsverslag](../reviews/2026-10-03-startup-login-uitvoering.md)
-- [Plan](../plans/2026-10-03-fix-startup-login-betrouwbaarheid.md)
+- [Plan](../plans/2026-10-03-fix-startup-login-betrouwbaarheid-af.md)
 - [Release v1.1.1](https://github.com/Joepvw/snippetsapp/releases/tag/v1.1.1)
 
 ## Stand

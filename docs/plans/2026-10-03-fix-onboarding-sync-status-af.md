@@ -1,5 +1,7 @@
 # Git-waarschuwing en eerlijke synchronisatiestatus
 
+Vervallen op 2026-10-15: geschrapt via de schrapkaart (registerrij `schrappen-2026-10-15` in de dirigent-laag, `context/vrijgave.md`), niet verder opgepakt.
+
 Status: implementatie afgerond op 2026-10-03, PR [snippetsapp#1](https://github.com/Joepvw/snippetsapp/pull/1). Release en installerdistributie blijven buiten deze opdracht.
 
 De lokale poorten zijn groen: Core 101 tests, architectuur 1 test, build en format, Core-dekking 83,31%. Zes echte Git-regressies falen op de oorspronkelijke code en slagen met de fix. Een geïsoleerde bronproef controleert echte WPF-views/commands en App→Git met tijdelijke repositories zonder de gebruikersapp te raken. De onafhankelijke review omvat de vier repo-lenzen binnen één reviewerslot. De CI-logger is minimaal hersteld naar de ingebouwde consolelogger, zonder poort of tests te veranderen.

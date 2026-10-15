@@ -66,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded `README.md` with feature list, placeholder syntax reference, sync model diagram, and roadmap.
 - Updated `docs/setup-second-user.md` with correct repository URL and standardized install location (`%LOCALAPPDATA%\Programs\SnippetLauncher\`).
 - Added `CHANGELOG.md` (this file).
-- Added plan for in-app update checker — [docs/plans/2026-04-29-feat-update-checker-plan.md](docs/plans/2026-04-29-feat-update-checker-plan.md).
+- Added plan for in-app update checker — [docs/plans/2026-04-29-feat-update-checker-plan-af.md](docs/plans/2026-04-29-feat-update-checker-plan-af.md).
 
 ## [1.0.0] — 2026-04-29
 

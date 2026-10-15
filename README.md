@@ -103,7 +103,7 @@ in je gekozen map als die nog leeg is, en sync via een remote is volledig option
 
 Geplande features staan in [docs/plans/](docs/plans/). Eerstvolgende:
 
-- **v1.1** — In-app update checker ([plan](docs/plans/2026-04-29-feat-update-checker-plan.md))
+- **v1.1** — In-app update checker ([plan](docs/plans/2026-04-29-feat-update-checker-plan-af.md))
 
 ## Bouwen vanuit broncode
 
