@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-10-13
+
+### Changed
+- Installatiehandleiding (`docs/setup-new-user.md`) begint nu met de installer; de zip is het alternatief.
+- Handleidingen en release-notes leggen de SmartScreen-melding uit ("Meer info", dan "Toch uitvoeren"), omdat de installer niet ondertekend is.
+
+### Fixed
+- Twee wankele tests stabiel gemaakt (update-lus pollt in plaats van een vaste wachttijd; proceskill toetst `HasExited`).
+
+### Validation
+- Release-kandidaat voor de praktijkacceptatie: installatieproef op een schone pc en de loginproef met Yasmina. App-code gelijk aan 1.1.1.
+
 ## [1.1.1] — 2026-10-04
 
 ### Fixed
@@ -92,7 +104,8 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Joepvw/snippetsapp/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/Joepvw/snippetsapp/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Joepvw/snippetsapp/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...v1.0.4
