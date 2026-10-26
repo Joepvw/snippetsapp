@@ -88,15 +88,27 @@ Gelezen door de skill `nachtrun` (stap 0). Gedragen door de proefrun van 2026-10
   `dotnet format Snippets.sln --verify-no-changes --severity warn`, `dotnet build Snippets.sln -c Release`,
   `dotnet test` op Core met `--collect:"XPlat Code Coverage"` (line-rate in `coverage.cobertura.xml` ten minste 0,70) en op App.
   Na de merge start CI op `master`; die run is de terugleesstap.
-- **deploy-doel en uitrolketen:** geen. Mergen naar `master` is het eindpunt van een nachtrun.
-  Een release (tag, installer, GitHub Release) gaat via de skill `release`, vraagt Joeps
-  PATCH/MINOR/MAJOR-keuze en komt als kaart in de klikronde. **Teruglezen:** `git log origin/master`
-  toont de merge, en de ci-poort is groen op de merge-commit.
-- **live-trede:** 1 (max 1). Merge naar `master` is het eindpunt; een draft-release (trede 2) wacht op een keuze van Joep. Schaal en vrijgave-verhoging: skill `nachtrun` stap 0.
-- **grenzen:** naar buiten is hier een release, want gebruikers krijgen dan een updatemelding.
-  's Nachts dus nooit taggen, geen GitHub Release, geen installer publiceren. Ook nooit: een
-  OAuth-app registreren of rechten wijzigen, en niets in `snippets/` (gebruikersinhoud) aanraken.
-  De architectuur-invarianten hierboven gelden onverkort.
+- **deploy-doel en uitrolketen:** standaard geen: mergen naar `master` is het eindpunt (trede 1).
+  **Teruglezen:** `git log origin/master` toont de merge, en de ci-poort is groen op de merge-commit.
+  Op trede 2 (alleen met `trede: 2` in de `vrijgegeven`-rij van dat plan) gaat de keten verder tot
+  een **draft-release**: na de merge en groene CI de installer bouwen met dezelfde stappen als de
+  skill `release` (lees die skill, kopieer niets en roep hem niet aan), en een GitHub Release aanmaken
+  met `gh release create <tag> --draft --prerelease`. Zo'n draft ziet geen gebruiker: de update-checker
+  leest `/releases/latest` (`src/SnippetLauncher.Core/Updates/GitHubUpdateCheckService.cs`), en dat
+  slaat drafts en prereleases over. Een draft maakt ook nog geen git-tag aan. **Teruglezen op trede
+  2:** `gh release view <tag> --json isDraft,isPrerelease,assets` toont `isDraft: true` en het
+  installer-bestand met de verwachte grootte. Publiceren blijft Joeps klik via de skill `release`
+  (PATCH/MINOR/MAJOR), als kaart in de klikronde.
+- **live-trede:** 1 (max 2). Merge naar `master` is het eindpunt. Een `vrijgegeven`-rij met `trede: 2`
+  mag tot een draft-release gaan. De eerste run op trede 2 is de proefrun (plan
+  2026-10-07-001 U2 in de dirigent-laag); pas na die proefrun en Joeps klik op de skill `release`
+  gaat de standaard naar 2. Schaal en vrijgave-verhoging: skill `nachtrun` stap 0. Besluit Joep:
+  "doen" op 2026-10-21, akkoord voor deze profielwijziging in de klikbundel van 2026-10-26.
+- **grenzen:** naar buiten is hier een gepubliceerde release, want gebruikers krijgen dan een
+  updatemelding. 's Nachts dus nooit `--draft` of `--prerelease` weghalen, nooit een release
+  publiceren of bewerken tot niet-draft, nooit zelf een tag pushen, en nooit de skill `release` zelf
+  aanroepen. Ook nooit: een OAuth-app registreren of rechten wijzigen, en niets in `snippets/`
+  (gebruikersinhoud) aanraken. De architectuur-invarianten hierboven gelden onverkort.
 - **lifecycle:** een af plan krijgt bovenaan een regel `Status: implementatie afgerond op <datum>,
   PR <link>` (zoals `docs/plans/2026-10-03-fix-onboarding-sync-status-af.md`); een niet-voor-de-hand-
   liggende les gaat naar `docs/solutions/`; halverwege gestopt werk naar een handoff in de
