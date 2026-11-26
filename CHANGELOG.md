@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- De zoekpopup opent merkbaar sneller, vooral de eerste keer na het opstarten en op een drukke pc. De app draaide ongemerkt in de Windows-efficiëntiemodus (lage prioriteit); dat staat nu uit, en de popup wordt direct na het opstarten alvast opgewarmd.
+- Typen werkt meteen zodra de popup opent. De eerste toetsaanslag ging soms verloren en bij de eerste keer openen kreeg het zoekvak pas na een halve seconde de focus.
+
+### Changed
+- Het logboek meet nu de opstartfasen, hoe lang een hotkey op verwerking wachtte en per oproep hoe lang het duurt tot de popup bruikbaar is.
+
 ## [1.1.1] — 2026-10-04
 
 ### Fixed

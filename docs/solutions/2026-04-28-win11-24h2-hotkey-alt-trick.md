@@ -31,3 +31,4 @@ Fallback chain: try plain `Activate()` first; if `GetForegroundWindow()` doesn't
 
 - The ALT keydown is synthetic but real — if a screen-reader or accessibility tool is listening, they may see it. Acceptable trade-off for now.
 - If Microsoft tightens further, we may need to move to a UI Automation-based focus path.
+- The ALT tap can put the popup itself into menu mode and swallow the first keystrokes; the popup ignores `SC_KEYMENU` for that reason. See [2026-11-26-popup-first-keystroke-lost.md](2026-11-26-popup-first-keystroke-lost.md).

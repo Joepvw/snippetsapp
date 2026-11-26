@@ -61,6 +61,9 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         StartQuery(string.Empty, false);
     }
 
+    /// <summary>Completes when the most recently started query has finished or was cancelled.</summary>
+    public Task WhenQueryCompletedAsync() => _queryTask;
+
     public void OnHidden()
     {
         _active = false;

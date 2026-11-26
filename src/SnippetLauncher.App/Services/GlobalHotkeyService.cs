@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using Serilog;
 using SnippetLauncher.Core.Abstractions;
 using SnippetLauncher.Core.Commands;
 using SnippetLauncher.Core.Settings;
@@ -44,6 +45,9 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
     [DllImport("user32.dll")]
     private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, IntPtr dwExtraInfo);
+
+    [DllImport("user32.dll")]
+    private static extern int GetMessageTime();
 
     private const byte VK_MENU = 0x12;
     private const uint KEYEVENTF_KEYUP = 0x0002;
@@ -146,6 +150,10 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     {
         if (msg != WM_HOTKEY) return IntPtr.Zero;
 
+        // How long the key press waited before this thread got to it: the part of "slow to open"
+        // that the popup's own timing cannot see.
+        Log.Debug("Hotkey handled after {Milliseconds} ms in the message queue", unchecked(Environment.TickCount - GetMessageTime()));
+
         switch (wParam.ToInt32())
         {
             case HK_SEARCH:
@@ -166,6 +174,10 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     /// </summary>
     public static void BringToForeground(IntPtr targetHwnd)
     {
+        // Already there: don't tap ALT again. A key the user presses between that ALT-down and
+        // ALT-up arrives as Alt+key and never reaches the search box.
+        if (GetForegroundWindow() == targetHwnd) return;
+
         keybd_event(VK_MENU, 0, 0, IntPtr.Zero);
         SetForegroundWindow(targetHwnd);
         keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, IntPtr.Zero);
