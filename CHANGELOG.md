@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] — 2026-11-26
+
 ### Fixed
 - De zoekpopup opent merkbaar sneller, vooral de eerste keer na het opstarten en op een drukke pc. De app draaide ongemerkt in de Windows-efficiëntiemodus (lage prioriteit); dat staat nu uit, en de popup wordt direct na het opstarten alvast opgewarmd.
 - Typen werkt meteen zodra de popup opent. De eerste toetsaanslag ging soms verloren en bij de eerste keer openen kreeg het zoekvak pas na een halve seconde de focus.
@@ -99,7 +101,8 @@ First usable release.
 - xUnit test suite covering placeholder engine, slug helper, hotkey binding, in-process command bus, and Git service.
 - GitHub Actions CI workflow.
 
-[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/Joepvw/snippetsapp/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/Joepvw/snippetsapp/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/Joepvw/snippetsapp/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Joepvw/snippetsapp/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/Joepvw/snippetsapp/compare/v1.0.3...v1.0.4
