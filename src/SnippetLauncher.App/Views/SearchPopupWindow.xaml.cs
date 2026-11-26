@@ -15,6 +15,8 @@ public partial class SearchPopupWindow : Window
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    private const int WM_SYSCOMMAND = 0x0112;
+    private const int SC_KEYMENU = 0xF100;
 
     private SearchPopupViewModel? _vm;
     private int _showGeneration;
@@ -33,6 +35,34 @@ public partial class SearchPopupWindow : Window
     }
 
     /// <summary>
+    /// Renders a throwaway copy of the popup once, off-screen and without taking focus, so the
+    /// process-wide first-render costs are paid before the user presses the hotkey.
+    /// </summary>
+    public static async Task PrewarmAsync(SearchPopupViewModel throwawayVm)
+    {
+        var window = new SearchPopupWindow
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+            ShowActivated = false,
+            DataContext = throwawayVm,
+        };
+        try
+        {
+            window.Show();
+            throwawayVm.OnActivated();
+            await throwawayVm.WhenQueryCompletedAsync();
+            await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+        finally
+        {
+            throwawayVm.OnHidden();
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// Shows the popup with proper foreground activation.
     /// Re-entrant: if already visible, just focus the search box.
     /// </summary>
@@ -47,7 +77,11 @@ public partial class SearchPopupWindow : Window
         var watch = Stopwatch.StartNew();
         var firstShow = !_shownBefore;
         _shownBefore = true;
-        Visibility = Visibility.Visible;
+        // Setting Visibility only queues the show. The first show also sizes and centres the
+        // window, so do it synchronously here: the position must not depend on whether the
+        // (prewarmed, so near-instant) first query has already filled the result list.
+        if (firstShow) Show();
+        else Visibility = Visibility.Visible;
         var generation = ++_showGeneration;
         // Toggle Topmost to force this window to the front of the topmost z-order,
         // even when a Topmost dialog (PlaceholderFillDialog) is also open.
@@ -82,6 +116,17 @@ public partial class SearchPopupWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         var dark = 1;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
+
+        // The foreground workaround taps ALT (GlobalHotkeyService.BringToForeground). When that
+        // tap lands in this window, Windows enters menu mode and swallows the next keystrokes,
+        // so the first typed characters never reach the search box. This popup has no menu.
+        HwndSource.FromHwnd(hwnd)?.AddHook(SuppressKeyMenu);
+    }
+
+    private static IntPtr SuppressKeyMenu(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_SYSCOMMAND && (wParam.ToInt64() & 0xFFF0) == SC_KEYMENU) handled = true;
+        return IntPtr.Zero;
     }
 
     private void SearchBox_KeyDown(object sender, KeyEventArgs e)

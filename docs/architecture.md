@@ -134,6 +134,8 @@ The `<snippets-dir>` defaults to `%APPDATA%/SnippetLauncher/snippets/` but most 
 
 The editor is created on first use. Local loading publishes one immutable snapshot through `LibraryChanged`; external changes refresh readers but do not manufacture local Git commit events. Search prepares strings once per snapshot. Only the current query generation may replace results or execute Enter; closing the popup cancels pending work and late focus callbacks.
 
+Right after the library has loaded, the host prewarms the search path (2026-11-26): one warm-up query and a throwaway copy of the popup, rendered off-screen without activation, so the first hotkey press does not pay the one-time WPF and JIT costs. The process must not run in Windows Efficiency Mode; see [docs/solutions/2026-11-26-tray-icon-efficiency-mode.md](solutions/2026-11-26-tray-icon-efficiency-mode.md).
+
 An editor keeps its draft across snapshot changes. Save/discard/cancel guards protect selection, New, Quick Add and exit. Placeholder edits and body-only drafts count as unsaved work. The active snippets directory remains fixed for the session; `PendingSnippetsDirectory` applies only on next settings load.
 
 Git operations stay on one dedicated channel worker. Silent credential lookup is bounded and never permits interaction; explicit Authenticate enables the interactive helper. Credentials are approved after verified remote operations. Queue state is scoped to repository and remote, with atomic persistence and recovery from local commits. First-clone recovery stages another clone, preserves the old library, asks how to resolve overlapping content, and then re-arms the file watcher on the active directory.

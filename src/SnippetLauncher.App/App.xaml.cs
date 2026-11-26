@@ -228,6 +228,7 @@ public partial class App : Application
             var watch = Stopwatch.StartNew();
             await repository.LoadAllAsync();
             Log.Information("Local library ready in {Milliseconds} ms; {Count} snippets", watch.ElapsedMilliseconds, repository.GetAll().Count);
+            _ = PrewarmSearchAsync();
             await _syncGate.WaitAsync();
             try
             {
@@ -241,6 +242,30 @@ public partial class App : Application
         catch (Exception)
         {
             Log.Warning("Library initialization or background sync needs attention; local files preserved");
+        }
+    }
+
+    /// <summary>
+    /// Pays the one-time costs of the first search (WPF render pipeline, fonts, templates and
+    /// JIT of the query path) right after startup instead of on the first hotkey press.
+    /// Uses a throwaway window and view model, so the real popup and its state stay untouched.
+    /// </summary>
+    private async Task PrewarmSearchAsync()
+    {
+        try
+        {
+            await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            if (_exiting || _services is null) return;
+            var watch = Stopwatch.StartNew();
+            var search = _services.GetRequiredService<SearchService>();
+            await Task.Run(() => search.Query("opwarmen"));
+            if (_exiting || _services is null) return;
+            await SearchPopupWindow.PrewarmAsync(ActivatorUtilities.CreateInstance<SearchPopupViewModel>(_services));
+            Log.Debug("Search popup prewarmed in {Milliseconds} ms", watch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Search popup prewarm skipped");
         }
     }
 
@@ -439,7 +464,10 @@ public partial class App : Application
             ToolTipText = $"Snippet Launcher {AppVersion}",
             IconSource = GetDefaultIcon(),
         };
-        icon.ForceCreate();
+        // ForceCreate turns on Windows Efficiency Mode by default (idle priority + EcoQoS for
+        // the whole process). That starves the hotkey popup whenever the machine is busy, so
+        // opt out. See docs/solutions/2026-11-26-tray-icon-efficiency-mode.md.
+        icon.ForceCreate(enablesEfficiencyMode: false);
 
         var menu = new ContextMenu();
 
