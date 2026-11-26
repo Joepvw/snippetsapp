@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using Serilog;
 using SnippetLauncher.App.Services;
 using SnippetLauncher.App.ViewModels;
 
@@ -16,6 +18,7 @@ public partial class SearchPopupWindow : Window
 
     private SearchPopupViewModel? _vm;
     private int _showGeneration;
+    private bool _shownBefore;
 
     public SearchPopupWindow()
     {
@@ -41,6 +44,9 @@ public partial class SearchPopupWindow : Window
             return;
         }
 
+        var watch = Stopwatch.StartNew();
+        var firstShow = !_shownBefore;
+        _shownBefore = true;
         Visibility = Visibility.Visible;
         var generation = ++_showGeneration;
         // Toggle Topmost to force this window to the front of the topmost z-order,
@@ -58,6 +64,7 @@ public partial class SearchPopupWindow : Window
         // Retry foregrounding + focus na window-init (ApplicationIdle = na Loaded/Render).
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            Log.Debug("Search popup usable in {Milliseconds} ms (first show: {FirstShow})", watch.ElapsedMilliseconds, firstShow);
             if (generation != _showGeneration || !IsVisible || SearchBox.Text.Length > 0) return;
             var h = new WindowInteropHelper(this).Handle;
             GlobalHotkeyService.BringToForeground(h);

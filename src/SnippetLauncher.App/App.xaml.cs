@@ -66,6 +66,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        var startupWatch = Stopwatch.StartNew();
         base.OnStartup(e);
 
         Directory.CreateDirectory(AppDataDir);
@@ -133,6 +134,7 @@ public partial class App : Application
         var services = new ServiceCollection();
         ConfigureServices(services, settingsSvc);
         _services = services.BuildServiceProvider();
+        Log.Debug("Startup: services ready at {Milliseconds} ms", startupWatch.ElapsedMilliseconds);
 
         // ── Autostart self-heal (re-bind registry path if exe moved) ─────────
         if (settingsSvc.Current.StartAtLoginEnabled)
@@ -157,6 +159,7 @@ public partial class App : Application
             _gitService?.StartAutoSync(seconds, () => _editorVm?.IsDirty == true);
         settingsVm.SyncAction = SyncNowAsync;
         _settingsWindow = new SettingsWindow(settingsVm);
+        Log.Debug("Startup: windows ready at {Milliseconds} ms", startupWatch.ElapsedMilliseconds);
 
         // ── Command bus wiring ───────────────────────────────────────────────
         var bus = _services.GetRequiredService<ICommandBus>();
@@ -186,9 +189,11 @@ public partial class App : Application
         // ── Hotkeys ──────────────────────────────────────────────────────────
         var hotkey = _services.GetRequiredService<IGlobalHotkeyService>();
         hotkey.Register();
+        Log.Debug("Startup: hotkeys ready at {Milliseconds} ms", startupWatch.ElapsedMilliseconds);
 
         // ── Tray icon ────────────────────────────────────────────────────────
         _trayIcon = BuildTrayIcon();
+        Log.Debug("Startup: tray ready at {Milliseconds} ms", startupWatch.ElapsedMilliseconds);
 
         // ── Repository load ──────────────────────────────────────────────────
         var snippetRepo = _services.GetRequiredService<SnippetRepository>();
@@ -204,7 +209,9 @@ public partial class App : Application
             Dispatcher.BeginInvoke(() => ShowUpdateAvailable(result));
         _updateNotifier.Start();
 
-        Log.Information("Snippet Launcher ready for local input");
+        using var process = Process.GetCurrentProcess();
+        Log.Information("Snippet Launcher ready for local input in {Milliseconds} ms ({SinceProcessStart} ms since process start)",
+            startupWatch.ElapsedMilliseconds, (long)(DateTime.Now - process.StartTime).TotalMilliseconds);
     }
 
     private EditorWindow GetEditor()
