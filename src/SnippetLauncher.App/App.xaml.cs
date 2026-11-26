@@ -254,18 +254,20 @@ public partial class App : Application
     {
         try
         {
-            await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             if (_exiting || _services is null) return;
             var watch = Stopwatch.StartNew();
             var search = _services.GetRequiredService<SearchService>();
             await Task.Run(() => search.Query("opwarmen"));
-            if (_exiting || _services is null) return;
+            // The window part runs on the UI thread: wait until it is idle, and skip it when the
+            // user already opened the popup (those costs are paid then).
+            await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            if (_exiting || _services is null || _popup is null || _popup.HasBeenShown) return;
             await SearchPopupWindow.PrewarmAsync(ActivatorUtilities.CreateInstance<SearchPopupViewModel>(_services));
             Log.Debug("Search popup prewarmed in {Milliseconds} ms", watch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "Search popup prewarm skipped");
+            Log.Debug("Search popup prewarm skipped ({Type})", ex.GetType().Name);
         }
     }
 

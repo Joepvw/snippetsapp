@@ -18,11 +18,12 @@ On top of that the first popup paid all one-time WPF costs (render pipeline, fon
 ## Solution
 
 - `ForceCreate(enablesEfficiencyMode: false)`.
-- Prewarm right after startup: one warm-up query plus a throwaway copy of the popup rendered off-screen without activation.
-- `PublishReadyToRun` for the published build.
-- Timing lines in the log (startup phases, "Search popup usable in N ms") so the next complaint starts with numbers.
+- Prewarm right after startup: one warm-up query plus a throwaway copy of the popup rendered off-screen, non-activatable (`WS_EX_NOACTIVATE`).
+- Timing lines in the log (startup phases, "Search popup usable in N ms", hotkey queue delay) so the next complaint starts with numbers.
 
-Measured (idle machine): first popup usable in about 600 ms before, 65 to 250 ms after.
+Measured on an idle machine, first open: typeable after 507 to 874 ms before, 77 to 100 ms after. The prewarm on its own (same build with and without): typeable after 159 to 250 ms without, 77 to 81 ms with; fully rendered after 336 to 416 ms without, 150 to 182 ms with. Under load the gap grows, because that is where idle priority hurt.
+
+Tried and dropped: `PublishReadyToRun`. Startup to ready was the same with and without (about 450 ms); only the library load got faster (about 110 to 50 ms). Not worth a different release build.
 
 ## Where it lives
 

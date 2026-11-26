@@ -14,13 +14,25 @@ public partial class SearchPopupWindow : Window
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value);
+
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int WM_SYSCOMMAND = 0x0112;
     private const int SC_KEYMENU = 0xF100;
+    private const int GWL_EXSTYLE = -20;
+    private const long WS_EX_TOOLWINDOW = 0x00000080;
+    private const long WS_EX_NOACTIVATE = 0x08000000;
 
     private SearchPopupViewModel? _vm;
     private int _showGeneration;
-    private bool _shownBefore;
+    private bool _prewarmOnly;
+
+    /// <summary>True once the popup has been shown to the user at least once.</summary>
+    public bool HasBeenShown { get; private set; }
 
     public SearchPopupWindow()
     {
@@ -47,6 +59,7 @@ public partial class SearchPopupWindow : Window
             Top = -32000,
             ShowActivated = false,
             DataContext = throwawayVm,
+            _prewarmOnly = true,
         };
         try
         {
@@ -57,7 +70,6 @@ public partial class SearchPopupWindow : Window
         }
         finally
         {
-            throwawayVm.OnHidden();
             window.Close();
         }
     }
@@ -75,11 +87,12 @@ public partial class SearchPopupWindow : Window
         }
 
         var watch = Stopwatch.StartNew();
-        var firstShow = !_shownBefore;
-        _shownBefore = true;
-        // Setting Visibility only queues the show. The first show also sizes and centres the
-        // window, so do it synchronously here: the position must not depend on whether the
-        // (prewarmed, so near-instant) first query has already filled the result list.
+        var firstShow = !HasBeenShown;
+        HasBeenShown = true;
+        // Setting Visibility only queues the show. The first show also creates, sizes and centres
+        // the window, so do it synchronously: the handle must exist before foregrounding, and the
+        // position must not depend on whether the first query has already filled the result list.
+        // Later shows stay queued, in the same order as the queued hide in HidePopup.
         if (firstShow) Show();
         else Visibility = Visibility.Visible;
         var generation = ++_showGeneration;
@@ -98,8 +111,9 @@ public partial class SearchPopupWindow : Window
         // Retry foregrounding + focus na window-init (ApplicationIdle = na Loaded/Render).
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            if (generation != _showGeneration || !IsVisible) return;
             Log.Debug("Search popup usable in {Milliseconds} ms (first show: {FirstShow})", watch.ElapsedMilliseconds, firstShow);
-            if (generation != _showGeneration || !IsVisible || SearchBox.Text.Length > 0) return;
+            if (SearchBox.Text.Length > 0) return;
             var h = new WindowInteropHelper(this).Handle;
             GlobalHotkeyService.BringToForeground(h);
             Activate();
@@ -116,6 +130,14 @@ public partial class SearchPopupWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         var dark = 1;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
+
+        // The off-screen warm-up copy must never take focus, also not when Windows looks for a
+        // window to activate after another one closes.
+        if (_prewarmOnly)
+        {
+            var style = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW));
+        }
 
         // The foreground workaround taps ALT (GlobalHotkeyService.BringToForeground). When that
         // tap lands in this window, Windows enters menu mode and swallows the next keystrokes,

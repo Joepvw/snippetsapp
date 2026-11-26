@@ -26,10 +26,4 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
-  <!-- Precompile app and package code for the published build (publish always passes -r win-x64),
-       so startup and the first popup spend less time in the JIT. Plain build/test is unaffected. -->
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
-    <PublishReadyToRun>true</PublishReadyToRun>
-  </PropertyGroup>
-
 </Project>

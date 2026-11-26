@@ -20,10 +20,12 @@ Two things, both tied to the foreground workaround in `GlobalHotkeyService.Bring
 
 - The popup ignores `SC_KEYMENU` (window hook in `OnSourceInitialized`).
 - The first show calls `Show()` synchronously, so the handle exists before foregrounding. This also keeps the centred position independent of how fast the first query returns.
+- `BringToForeground` returns at once when the window already is the foreground window. Otherwise the retry at `ApplicationIdle` taps ALT a second time, right when the user starts typing, and a key pressed between that ALT-down and ALT-up arrives as Alt+key.
 
-Measured through the IPC route (no modifier held, the hard case): before, "zq" typed right after foreground arrived as "q" on the first open; after, "zq" arrives on every open, and the popup is typeable about 75 to 175 ms after the trigger instead of 500 to 870 ms.
+Measured through the IPC route (no modifier held, the hard case), typing "zq" the moment the popup has the foreground: before, it arrived as "q" on the first open (2 of 2); after, "zq" arrives on every open (8 of 8), and the first open is typeable 77 to 100 ms after the trigger instead of 507 to 874 ms.
 
 ## Where it lives
 
 - [src/SnippetLauncher.App/Views/SearchPopupWindow.xaml.cs](../../src/SnippetLauncher.App/Views/SearchPopupWindow.xaml.cs): `ShowAndActivate`, `SuppressKeyMenu`
+- [src/SnippetLauncher.App/Services/GlobalHotkeyService.cs](../../src/SnippetLauncher.App/Services/GlobalHotkeyService.cs): `BringToForeground`
 - Related: [2026-04-28-win11-24h2-hotkey-alt-trick.md](2026-04-28-win11-24h2-hotkey-alt-trick.md)

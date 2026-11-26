@@ -12,8 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Typen werkt meteen zodra de popup opent. De eerste toetsaanslag ging soms verloren en bij de eerste keer openen kreeg het zoekvak pas na een halve seconde de focus.
 
 ### Changed
-- De gepubliceerde versie is voorgecompileerd (ReadyToRun), zodat opstarten minder rekentijd kost.
-- Het logboek meet nu de opstartfasen en per oproep hoe lang het duurt tot de popup bruikbaar is.
+- Het logboek meet nu de opstartfasen, hoe lang een hotkey op verwerking wachtte en per oproep hoe lang het duurt tot de popup bruikbaar is.
 
 ## [1.1.1] — 2026-10-04
 
